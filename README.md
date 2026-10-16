@@ -1,29 +1,139 @@
 # Календарь звонков
 
-
 [![hexlet-check](https://github.com/madatsci/ai-for-developers-project-386/actions/workflows/hexlet-check.yml/badge.svg)](https://github.com/madatsci/ai-for-developers-project-386/actions)
 
-Разработайте совместно с ИИ сервис для бронирования календаря
+Учебный сервис для бронирования звонков по мотивам Cal.com. Сейчас реализован
+каркас: стартовая страница, HTTP API, подключение PostgreSQL и CI.
 
 Учебный проект Хекслета: https://ru.hexlet.io/programs/ai-for-developers
 Как это должно работать: https://files.hexlet.app/a/2ipc5m
 
 ## Стек
 
-- Разное
+Go 1.26, `net/http`, PostgreSQL 18 и pgx; Vue 3, TypeScript, Vite, Vue Router,
+shadcn-vue и Tailwind CSS.
+
+Для разработки нужны Go 1.26+, **Node.js 26** с npm, Docker с Compose v2,
+GNU Make и curl. Версия Node закреплена в `.node-version` и проверяется при
+установке frontend-зависимостей. CI использует ту же версию.
 
 ## Установка
-
-<!-- Опишите установку: клонирование, зависимости, переменные окружения -->
 
 ```bash
 git clone https://github.com/madatsci/ai-for-developers-project-386.git
 cd ai-for-developers-project-386
+make setup
 ```
 
-## Использование
+`make setup` устанавливает зависимости из lock-файлов и golangci-lint фиксированной
+версии в `.bin/` проекта. Системная установка линтера не меняется.
 
-<!-- Добавьте примеры запуска и запись asciinema — именно это смотрит работодатель -->
+## Локальный запуск
+
+```bash
+make dev
+```
+
+Команда запускает PostgreSQL, ждёт его готовности и поднимает бэкенд с фронтендом.
+
+| Сервис | Адрес |
+| --- | --- |
+| Фронтенд | <http://127.0.0.1:5175> |
+| Проверка API и соединения с БД | <http://127.0.0.1:8080/api/health> |
+| API через прокси фронтенда | <http://127.0.0.1:5175/api/health> |
+| PostgreSQL | `127.0.0.1:5433` |
+
+Успешный ответ `/api/health`: HTTP 200 и `{"status":"ok"}`. Если БД становится
+недоступна, эндпоинт возвращает HTTP 503. При недоступной БД бэкенд не запускается.
+Порт PostgreSQL внутри контейнера — `5432`, на машине — **`5433`**.
+
+Ctrl+C останавливает серверы приложения. `make db-down` останавливает PostgreSQL,
+сохраняя данные в Docker volume. Для запуска частей в отдельных терминалах:
+
+```bash
+make db-up
+make dev-backend   # первый терминал
+make dev-frontend  # второй терминал
+```
+
+Значения для разработки уже заданы в `Makefile`, копировать `.env` для первого
+запуска не требуется. При необходимости скопируйте `.env.example` в `.env`:
+`make` загрузит оттуда `DATABASE_URL`, `HTTP_ADDR`, `API_PROXY_TARGET` и
+`FRONTEND_PORT`. При изменении адреса бэкенда также измените `API_PROXY_TARGET`.
+Учётные данные `calendar/calendar` предназначены только для локальной БД.
+
+## Проверки
+
+| Команда | Что проверяет |
+| --- | --- |
+| `make test` | Go-тесты с race detector и Vitest без watch-режима |
+| `make lint` | golangci-lint, gofmt, ESLint, Prettier и синтаксис smoke-скрипта |
+| `make format` | Форматирует Go и frontend-код |
+| `make build` | Go-бинарник в `.bin/api`, проверка TypeScript и Vite-сборка в `frontend/dist` |
+| `make smoke` | Запускает БД, собирает и проверяет работающее приложение |
+| `make check` | Все проверки: lint, test, build и smoke |
+
+По отдельности доступны `make test-backend`, `make test-frontend`,
+`make lint-backend` и `make lint-frontend`. Unit-тестам Docker не нужен.
+
+Дымовой тест запускает собранный Go-бинарник и Vite preview на отдельных портах
+`18080` и `14173`, проверяет HTML, доступность JS/CSS и JSON-ответ API напрямую
+и через frontend-прокси с настоящим подключением к PostgreSQL. Затем он
+останавливает созданные процессы. Порты можно изменить переменными
+`SMOKE_BACKEND_PORT` и `SMOKE_FRONTEND_PORT`. PostgreSQL после теста остаётся
+запущенным; остановка — `make db-down`.
+
+Vite preview используется только для проверки сборки, не для production-хостинга.
+
+## Структура
+
+```text
+backend/cmd/api/          запуск HTTP-сервера и подключение БД
+backend/internal/httpapi/ маршруты и тесты HTTP API
+frontend/src/            Vue-приложение и тесты
+scripts/smoke.mjs         проверка запуска приложения
+compose.yaml             локальная PostgreSQL
+.github/workflows/ci.yml  автоматические проверки
+```
+
+Workflow `CI` на каждый push и pull request устанавливает зависимости, запускает
+линтеры, тесты, сборку и дымовую проверку с PostgreSQL. Исходный workflow Хекслета
+сохранён отдельно.
+
+## Релизы
+
+Отдельный workflow [Release Please](.github/workflows/release-please.yml)
+запускается при push в `main`, в том числе после мержа PR. Для всего приложения
+используется одна версия в `version.txt` и стратегия `simple`.
+
+Все коммиты в проекте должны соответствовать
+[Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/): например,
+`feat: add application skeleton` или `fix: handle database timeout`.
+При squash merge задайте такой заголовок итоговому коммиту. Изменения `feat:`,
+`fix:` и breaking changes создают или обновляют общий release-PR с новой версией
+и `CHANGELOG.md`. Обычные `chore:`, `ci:` и `docs:` сами по себе релиз не запускают.
+После мержа release-PR workflow создаёт тег и GitHub Release.
+
+Для работы со стандартным `GITHUB_TOKEN` в настройках репозитория
+**Settings → Actions → General → Workflow permissions** включите
+**Allow GitHub Actions to create and approve pull requests**. Права на запись
+контента, PR и меток заданы в workflow.
+
+Чтобы CI автоматически запускался и на release-PR, добавьте Actions secret
+`RELEASE_PLEASE_TOKEN` с токеном отдельного бота или fine-grained PAT для этого
+репозитория с правами **Contents**, **Issues** и **Pull requests: Read and write**.
+Без этого секрета workflow использует `GITHUB_TOKEN`: release-PR будет создан,
+но его события не запустят другие workflows. Это
+[ограничение GitHub, описанное в release-please-action](https://github.com/googleapis/release-please-action#other-actions-on-release-please-prs).
+
+## Официальные руководства
+
+Основа frontend создана официальным `create-vue`. При настройке использованы
+[Vue Quick Start](https://vuejs.org/guide/quick-start.html),
+[shadcn-vue для Vite](https://www.shadcn-vue.com/docs/installation/vite),
+[pgxpool](https://pkg.go.dev/github.com/jackc/pgx/v5/pgxpool),
+[Docker Compose](https://docs.docker.com/compose/gettingstarted/) и
+[golangci-lint](https://golangci-lint.run/docs/welcome/install/).
 
 ---
 
