@@ -39,3 +39,17 @@ Pull requests should explain the change and motivation, link the relevant issue,
 ## Configuration & Security
 
 Copy `.env.example` only when overriding local defaults. Never commit `.env`, credentials, tokens, or production database URLs. The bundled `calendar/calendar` credentials are for local development only.
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in GitHub Issues. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The default five-label triage vocabulary is used. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This repository uses the single-context domain documentation layout. See `docs/agents/domain.md`.
