@@ -10,15 +10,15 @@ export FRONTEND_PORT ?= 5175
 GOLANGCI_VERSION := v2.15.0
 GOLANGCI := $(CURDIR)/.bin/$(GOLANGCI_VERSION)/golangci-lint
 
-.PHONY: help setup install tools db-up db-down dev dev-backend dev-frontend test test-backend test-frontend lint lint-backend lint-frontend format build build-backend build-frontend smoke check
+.PHONY: help setup install tools db-up db-down dev dev-backend dev-frontend test test-backend test-frontend lint lint-backend lint-frontend lint-typespec format build build-backend build-frontend build-typespec smoke check
 
 help:
 	@echo "make setup        Install dependencies and the pinned Go linter"
 	@echo "make dev          Start PostgreSQL, backend and frontend"
 	@echo "make test         Run backend and frontend tests"
-	@echo "make lint         Check Go, ESLint and Prettier"
-	@echo "make format       Format Go and frontend source files"
-	@echo "make build        Build backend and frontend"
+	@echo "make lint         Check Go, frontend and TypeSpec"
+	@echo "make format       Format Go, frontend and TypeSpec source files"
+	@echo "make build        Build backend, frontend and OpenAPI contract"
 	@echo "make smoke        Start PostgreSQL and smoke-test production builds"
 	@echo "make check        Run lint, tests, builds and the smoke test"
 	@echo "make db-down      Stop PostgreSQL, preserving its data volume"
@@ -27,6 +27,7 @@ setup: install tools
 
 install:
 	cd backend && go mod download
+	npm --prefix api ci
 	npm --prefix frontend ci
 
 tools: $(GOLANGCI)
@@ -59,7 +60,7 @@ test-backend:
 test-frontend:
 	npm --prefix frontend test
 
-lint: lint-backend lint-frontend
+lint: lint-backend lint-frontend lint-typespec
 	node --check scripts/smoke.mjs
 
 lint-backend: tools
@@ -70,11 +71,15 @@ lint-frontend:
 	npm --prefix frontend run lint
 	npm --prefix frontend run format:check
 
+lint-typespec:
+	npm --prefix api run check
+
 format:
 	cd backend && gofmt -w .
+	npm --prefix api run format
 	npm --prefix frontend run format
 
-build: build-backend build-frontend
+build: build-backend build-frontend build-typespec
 
 build-backend:
 	mkdir -p .bin
@@ -82,6 +87,9 @@ build-backend:
 
 build-frontend:
 	npm --prefix frontend run build
+
+build-typespec:
+	npm --prefix api run build
 
 smoke: db-up build
 	node scripts/smoke.mjs

@@ -11,7 +11,7 @@
 ## Стек
 
 Go 1.26, `net/http`, PostgreSQL 18 и pgx; Vue 3, TypeScript, Vite, Vue Router,
-shadcn-vue и Tailwind CSS.
+shadcn-vue и Tailwind CSS; TypeSpec как Design First источник HTTP-контракта.
 
 Для разработки нужны Go 1.26+, **Node.js 26** с npm, Docker с Compose v2,
 GNU Make и curl. Версия Node закреплена в `.node-version` и проверяется при
@@ -67,14 +67,17 @@ make dev-frontend  # второй терминал
 | Команда | Что проверяет |
 | --- | --- |
 | `make test` | Go-тесты с race detector и Vitest без watch-режима |
-| `make lint` | golangci-lint, gofmt, ESLint, Prettier и синтаксис smoke-скрипта |
-| `make format` | Форматирует Go и frontend-код |
-| `make build` | Go-бинарник в `.bin/api`, проверка TypeScript и Vite-сборка в `frontend/dist` |
+| `make lint` | golangci-lint, gofmt, ESLint, Prettier, TypeSpec и синтаксис smoke-скрипта |
+| `make format` | Форматирует Go, frontend и TypeSpec-код |
+| `make build` | Go-бинарник, frontend-сборка и OpenAPI из TypeSpec |
 | `make smoke` | Запускает БД, собирает и проверяет работающее приложение |
 | `make check` | Все проверки: lint, test, build и smoke |
 
 По отдельности доступны `make test-backend`, `make test-frontend`,
-`make lint-backend` и `make lint-frontend`. Unit-тестам Docker не нужен.
+`make lint-backend`, `make lint-frontend`, `make lint-typespec` и
+`make build-typespec`. Unit-тестам Docker не нужен. Исходный TypeSpec-контракт
+хранится в `api/`, а сгенерированный OpenAPI появляется в
+`api/tsp-output/openapi.yaml`.
 
 Дымовой тест запускает собранный Go-бинарник и Vite preview на отдельных портах
 `18080` и `14173`, проверяет HTML, доступность JS/CSS и JSON-ответ API напрямую
@@ -88,6 +91,7 @@ Vite preview используется только для проверки сб�
 ## Структура
 
 ```text
+api/                      TypeSpec-контракт и генерация OpenAPI
 backend/cmd/api/          запуск HTTP-сервера и подключение БД
 backend/internal/httpapi/ маршруты и тесты HTTP API
 frontend/src/            Vue-приложение и тесты
@@ -131,6 +135,7 @@ Workflow `CI` на каждый push и pull request устанавливает 
 Основа frontend создана официальным `create-vue`. При настройке использованы
 [Vue Quick Start](https://vuejs.org/guide/quick-start.html),
 [shadcn-vue для Vite](https://www.shadcn-vue.com/docs/installation/vite),
+[TypeSpec](https://typespec.io/docs/),
 [pgxpool](https://pkg.go.dev/github.com/jackc/pgx/v5/pgxpool),
 [Docker Compose](https://docs.docker.com/compose/gettingstarted/) и
 [golangci-lint](https://golangci-lint.run/docs/welcome/install/).
