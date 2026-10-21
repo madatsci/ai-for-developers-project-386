@@ -10,11 +10,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build-only": "vite build",
+    "generate:api": "openapi-ts",
     "type-check": "vue-tsc --build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --config .prettierrc.json --write . ../scripts/smoke.mjs",
-    "format:check": "prettier --config .prettierrc.json --check . ../scripts/smoke.mjs"
+    "format": "prettier --config .prettierrc.json --write . ../scripts/check-client-sdk.mjs ../scripts/smoke.mjs",
+    "format:check": "prettier --config .prettierrc.json --check . ../scripts/check-client-sdk.mjs ../scripts/smoke.mjs"
   },
   "dependencies": {
     "@lucide/vue": "^1.58.0",
@@ -25,6 +26,7 @@
     "vue-router": "^5.3.1"
   },
   "devDependencies": {
+    "@hey-api/openapi-ts": "0.99.0",
     "@tailwindcss/vite": "^4.3.3",
     "@tsconfig/node26": "^26.0.1",
     "@types/jsdom": "^30.0.0",
@@ -49,6 +51,9 @@
     "vitest": "^4.1.11",
     "vue-eslint-parser": "^10.4.1",
     "vue-tsc": "^3.3.11"
+  },
+  "overrides": {
+    "js-yaml": "4.3.2"
   },
   "engines": {
     "node": ">=26.0.0 <27"
