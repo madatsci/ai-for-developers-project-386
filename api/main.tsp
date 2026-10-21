@@ -1,5 +1,6 @@
 import "@typespec/http";
 import "@typespec/json-schema";
+import "@typespec/openapi";
 import "@typespec/openapi3";
 
 import "./models.tsp";
@@ -18,5 +19,6 @@ namespace CallCalendar;
 @route("/health")
 interface HealthOperations {
   @get
+  @TypeSpec.OpenAPI.operationId("getHealth")
   getHealth(): HealthOkResponse | HealthUnavailableResponse;
 }

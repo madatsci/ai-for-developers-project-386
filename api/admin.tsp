@@ -7,10 +7,12 @@ namespace CallCalendar;
 interface AdminCallTypesOperations {
   /** Lists all non-deleted call types in the administrative order. */
   @get
+  @TypeSpec.OpenAPI.operationId("listAdminCallTypes")
   listCallTypes(): AdminCallTypeListOkResponse | InternalErrorResponse;
 
   /** Creates an active call type with a stable public slug. */
   @post
+  @TypeSpec.OpenAPI.operationId("createAdminCallType")
   createCallType(@body body: CreateCallTypeRequest):
     | AdminCallTypeCreatedResponse
     | InvalidRequestResponse
@@ -22,6 +24,7 @@ interface AdminCallTypesOperations {
 
   /** Replaces the complete editable state of a call type. */
   @put
+  @TypeSpec.OpenAPI.operationId("updateAdminCallType")
   @route("/{id}")
   updateCallType(
     @path id: ResourceId,
@@ -41,6 +44,7 @@ interface AdminCallTypesOperations {
 
   /** Soft-deletes a call type which has no call history. */
   @delete
+  @TypeSpec.OpenAPI.operationId("deleteAdminCallType")
   @route("/{id}")
   deleteCallType(
     @path id: ResourceId,
@@ -60,10 +64,12 @@ interface AdminCallTypesOperations {
 interface AdminSchedulesOperations {
   /** Lists all schedules ordered by name. */
   @get
+  @TypeSpec.OpenAPI.operationId("listAdminSchedules")
   listSchedules(): AdminScheduleListOkResponse | InternalErrorResponse;
 
   /** Creates a named schedule with all seven ISO weekdays supplied explicitly. */
   @post
+  @TypeSpec.OpenAPI.operationId("createAdminSchedule")
   createSchedule(@body body: CreateScheduleRequest):
     | AdminScheduleCreatedResponse
     | InvalidRequestResponse
@@ -74,6 +80,7 @@ interface AdminSchedulesOperations {
 
   /** Replaces a schedule name and all seven days of weekly availability. */
   @put
+  @TypeSpec.OpenAPI.operationId("updateAdminSchedule")
   @route("/{id}")
   updateSchedule(
     @path id: ResourceId,
@@ -92,6 +99,7 @@ interface AdminSchedulesOperations {
 
   /** Physically deletes an unused schedule which is not the last schedule. */
   @delete
+  @TypeSpec.OpenAPI.operationId("deleteAdminSchedule")
   @route("/{id}")
   deleteSchedule(
     @path id: ResourceId,
@@ -112,10 +120,12 @@ interface AdminSchedulesOperations {
 interface AdminWorkingHoursOperations {
   /** Reads the single global working-hours resource. */
   @get
+  @TypeSpec.OpenAPI.operationId("getAdminWorkingHours")
   getWorkingHours(): WorkingHoursOkResponse | InternalErrorResponse;
 
   /** Replaces all seven days of global working hours. */
   @put
+  @TypeSpec.OpenAPI.operationId("updateAdminWorkingHours")
   updateWorkingHours(
     @header("If-Match") if_match: EntityTag,
     @body body: UpdateWorkingHoursRequest,
@@ -137,6 +147,7 @@ interface AdminCallsOperations {
    * A cursor is bound to the snapshot, period, and filters which created it.
    */
   @get
+  @TypeSpec.OpenAPI.operationId("listAdminCalls")
   listCalls(
     @query period?: CallPeriod = CallPeriod.Upcoming,
     @query call_type_id?: ResourceId,
