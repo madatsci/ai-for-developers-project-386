@@ -1,0 +1,2581 @@
+openapi: 3.1.0
+info:
+  title: Call Calendar API
+  version: 0.0.0
+tags:
+  - name: Health
+  - name: Public call types
+  - name: Public calls
+  - name: Admin call types
+  - name: Admin schedules
+  - name: Admin working hours
+  - name: Admin calls
+paths:
+  /api/health:
+    get:
+      operationId: getHealth
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthOkBody'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthUnavailableBody'
+      tags:
+        - Health
+  /api/v1/admin/call-types:
+    get:
+      operationId: listAdminCallTypes
+      description: Lists all non-deleted call types in the administrative order.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminCallTypeList'
+        '500':
+          description: Server error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalError'
+      tags:
+        - Admin call types
+    post:
+      operationId: createAdminCallType
+      description: Creates an active call type with a stable public slug.
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          headers:
+            ETag:
+              required: true
+              schema:
+                $ref: '#/components/schemas/EntityTag'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminCallType'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidRequestError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/CallTypeNameConflictError'
+                  - $ref: '#/components/schemas/ScheduleUnavailableError'
+        '415':
+          description: Client error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnsupportedMediaTypeError'
+        '422':
+          description: Client error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '500':
+          description: Server error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalError'
+      tags:
+        - Admin call types
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCallTypeRequest'
+  /api/v1/admin/call-types/{id}:
+    put:
+      operationId: updateAdminCallType
+      description: Replaces the complete editable state of a call type.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/ResourceId'
+        - name: If-Match
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/EntityTag'
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            ETag:
+              required: true
+              schema:
+                $ref: '#/components/schemas/EntityTag'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminCallType'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidRequestError'
+        '404':
+          description: The server cannot find the requested resource.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallTypeNotFoundError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/CallTypeNameConflictError'
+                  - $ref: '#/components/schemas/ScheduleUnavailableError'
+        '412':
+          description: Precondition failed.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionConflictError'
+        '415':
+          description: Client error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnsupportedMediaTypeError'
+        '422':
+          description: Client error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '428':
+          description: Client error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreconditionRequiredError'
+        '500':
+          description: Server error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalError'
+      tags:
+        - Admin call types
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCallTypeRequest'
+    delete:
+      operationId: deleteAdminCallType
+      description: Soft-deletes a call type which has no call history.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/ResourceId'
+        - name: If-Match
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/EntityTag'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoContentResponse'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidRequestError'
+        '404':
+          description: The server cannot find the requested resource.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallTypeNotFoundError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallTypeHasCallsError'
+        '412':
+          description: Precondition failed.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionConflictError'
+        '428':
+          description: Client error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreconditionRequiredError'
+        '500':
+          description: Server error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalError'
+      tags:
+        - Admin call types
+  /api/v1/admin/calls:
+    get:
+      operationId: listAdminCalls
+      description: |-
+        Lists a stable 50-item snapshot of upcoming or past calls.
+        A cursor is bound to the snapshot, period, and filters which created it.
+      parameters:
+        - name: period
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/CallPeriod'
+            default: upcoming
+          explode: false
+        - name: call_type_id
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ResourceId'
+          explode: false
+        - name: q
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/CallSearchQuery'
+          explode: false
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/PageCursor'
+          explode: false
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminCallPage'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidCursorError'
+        '422':
+          description: Client error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '500':
+          description: Server error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalError'
+      tags:
+        - Admin calls
+  /api/v1/admin/schedules:
+    get:
+      operationId: listAdminSchedules
+      description: Lists all schedules ordered by name.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminScheduleList'
+        '500':
+          description: Server error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalError'
+      tags:
+        - Admin schedules
+    post:
+      operationId: createAdminSchedule
+      description: Creates a named schedule with all seven ISO weekdays supplied explicitly.
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          headers:
+            ETag:
+              required: true
+              schema:
+                $ref: '#/components/schemas/EntityTag'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSchedule'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidRequestError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleNameConflictError'
+        '415':
+          description: Client error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnsupportedMediaTypeError'
+        '422':
+          description: Client error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '500':
+          description: Server error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalError'
+      tags:
+        - Admin schedules
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateScheduleRequest'
+  /api/v1/admin/schedules/{id}:
+    put:
+      operationId: updateAdminSchedule
+      description: Replaces a schedule name and all seven days of weekly availability.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/ResourceId'
+        - name: If-Match
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/EntityTag'
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            ETag:
+              required: true
+              schema:
+                $ref: '#/components/schemas/EntityTag'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSchedule'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidRequestError'
+        '404':
+          description: The server cannot find the requested resource.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleNotFoundError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleNameConflictError'
+        '412':
+          description: Precondition failed.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionConflictError'
+        '415':
+          description: Client error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnsupportedMediaTypeError'
+        '422':
+          description: Client error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '428':
+          description: Client error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreconditionRequiredError'
+        '500':
+          description: Server error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalError'
+      tags:
+        - Admin schedules
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateScheduleRequest'
+    delete:
+      operationId: deleteAdminSchedule
+      description: Physically deletes an unused schedule which is not the last schedule.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/ResourceId'
+        - name: If-Match
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/EntityTag'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoContentResponse'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidRequestError'
+        '404':
+          description: The server cannot find the requested resource.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleNotFoundError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/ScheduleInUseError'
+                  - $ref: '#/components/schemas/LastScheduleError'
+        '412':
+          description: Precondition failed.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionConflictError'
+        '428':
+          description: Client error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreconditionRequiredError'
+        '500':
+          description: Server error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalError'
+      tags:
+        - Admin schedules
+  /api/v1/admin/working-hours:
+    get:
+      operationId: getAdminWorkingHours
+      description: Reads the single global working-hours resource.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            ETag:
+              required: true
+              schema:
+                $ref: '#/components/schemas/EntityTag'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkingHours'
+        '500':
+          description: Server error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalError'
+      tags:
+        - Admin working hours
+    put:
+      operationId: updateAdminWorkingHours
+      description: Replaces all seven days of global working hours.
+      parameters:
+        - name: If-Match
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/EntityTag'
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            ETag:
+              required: true
+              schema:
+                $ref: '#/components/schemas/EntityTag'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkingHours'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidRequestError'
+        '412':
+          description: Precondition failed.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionConflictError'
+        '415':
+          description: Client error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnsupportedMediaTypeError'
+        '422':
+          description: Client error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '428':
+          description: Client error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreconditionRequiredError'
+        '500':
+          description: Server error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalError'
+      tags:
+        - Admin working hours
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWorkingHoursRequest'
+  /api/v1/public/call-types:
+    get:
+      operationId: listPublicCallTypes
+      description: Lists active call types ordered by duration and then name.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicCallTypeList'
+        '500':
+          description: Server error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalError'
+      tags:
+        - Public call types
+  /api/v1/public/call-types/{slug}:
+    get:
+      operationId: getPublicCallType
+      description: Reads an active or disabled call type by its stable public slug.
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/CallTypeSlug'
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicCallType'
+        '404':
+          description: The server cannot find the requested resource.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallTypeNotFoundError'
+        '500':
+          description: Server error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalError'
+      tags:
+        - Public call types
+  /api/v1/public/call-types/{slug}/availability:
+    get:
+      operationId: getPublicCallTypeAvailability
+      description: |-
+        Returns candidate slots for today and the following 13 Moscow dates.
+        Reading availability does not reserve a slot.
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/CallTypeSlug'
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvailabilityResponseBody'
+        '404':
+          description: The server cannot find the requested resource.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallTypeNotFoundError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallTypeUnavailableError'
+        '500':
+          description: Server error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalError'
+      tags:
+        - Public call types
+  /api/v1/public/calls:
+    post:
+      operationId: createCall
+      description: |-
+        Atomically rechecks availability and creates one immediately confirmed call.
+        Repeating the same normalized request with the same key returns the original 201 response.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/IdempotencyKey'
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatedCall'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidRequestError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/CallTypeChangedError'
+                  - $ref: '#/components/schemas/CallTypeUnavailableError'
+                  - $ref: '#/components/schemas/SlotUnavailableError'
+                  - $ref: '#/components/schemas/IdempotencyConflictError'
+        '415':
+          description: Client error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnsupportedMediaTypeError'
+        '422':
+          description: Client error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '500':
+          description: Server error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalError'
+      tags:
+        - Public calls
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCallRequest'
+components:
+  schemas:
+    AdminCall:
+      type: object
+      required:
+        - id
+        - call_type_id
+        - call_type_name
+        - duration_minutes
+        - starts_at
+        - ends_at
+        - visitor_name
+        - visitor_email
+        - visitor_notes
+      properties:
+        id:
+          $ref: '#/components/schemas/ResourceId'
+        call_type_id:
+          $ref: '#/components/schemas/ResourceId'
+        call_type_name:
+          $ref: '#/components/schemas/CallTypeName'
+        duration_minutes:
+          $ref: '#/components/schemas/DurationMinutes'
+        starts_at:
+          $ref: '#/components/schemas/MoscowSlotDateTime'
+        ends_at:
+          $ref: '#/components/schemas/MoscowSlotDateTime'
+        visitor_name:
+          $ref: '#/components/schemas/VisitorName'
+        visitor_email:
+          $ref: '#/components/schemas/VisitorEmail'
+        visitor_notes:
+          anyOf:
+            - $ref: '#/components/schemas/VisitorNotes'
+            - type: 'null'
+      unevaluatedProperties:
+        not: {}
+    AdminCallPage:
+      type: object
+      required:
+        - as_of
+        - timezone
+        - items
+        - next_cursor
+      properties:
+        as_of:
+          $ref: '#/components/schemas/MoscowDateTime'
+        timezone:
+          type: string
+          enum:
+            - Europe/Moscow
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminCall'
+          maxItems: 50
+        next_cursor:
+          anyOf:
+            - $ref: '#/components/schemas/PageCursor'
+            - type: 'null'
+      unevaluatedProperties:
+        not: {}
+    AdminCallPageOkResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/AdminCallPage'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    AdminCallType:
+      type: object
+      required:
+        - id
+        - slug
+        - name
+        - description
+        - duration_minutes
+        - status
+        - schedule
+        - version
+        - can_delete
+        - delete_blocked_reason
+      properties:
+        id:
+          $ref: '#/components/schemas/ResourceId'
+        slug:
+          $ref: '#/components/schemas/CallTypeSlug'
+        name:
+          $ref: '#/components/schemas/CallTypeName'
+        description:
+          anyOf:
+            - $ref: '#/components/schemas/CallTypeDescription'
+            - type: 'null'
+        duration_minutes:
+          $ref: '#/components/schemas/DurationMinutes'
+        status:
+          $ref: '#/components/schemas/CallTypeStatus'
+        schedule:
+          $ref: '#/components/schemas/ScheduleReference'
+        version:
+          $ref: '#/components/schemas/ResourceVersion'
+        can_delete:
+          type: boolean
+        delete_blocked_reason:
+          anyOf:
+            - $ref: '#/components/schemas/CallTypeDeleteBlockedReason'
+            - type: 'null'
+      unevaluatedProperties:
+        not: {}
+    AdminCallTypeCreatedResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/AdminCallType'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    AdminCallTypeList:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminCallType'
+      unevaluatedProperties:
+        not: {}
+    AdminCallTypeListOkResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/AdminCallTypeList'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    AdminCallTypeUpdatedResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/AdminCallType'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    AdminSchedule:
+      type: object
+      required:
+        - id
+        - name
+        - days
+        - version
+        - assigned_call_types
+        - can_delete
+        - delete_blocked_reason
+      properties:
+        id:
+          $ref: '#/components/schemas/ResourceId'
+        name:
+          $ref: '#/components/schemas/ScheduleName'
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/WeeklyDay'
+          minItems: 7
+          maxItems: 7
+        version:
+          $ref: '#/components/schemas/ResourceVersion'
+        assigned_call_types:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssignedCallType'
+        can_delete:
+          type: boolean
+        delete_blocked_reason:
+          anyOf:
+            - $ref: '#/components/schemas/ScheduleDeleteBlockedReason'
+            - type: 'null'
+      unevaluatedProperties:
+        not: {}
+    AdminScheduleCreatedResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/AdminSchedule'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    AdminScheduleList:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminSchedule'
+      unevaluatedProperties:
+        not: {}
+    AdminScheduleListOkResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/AdminScheduleList'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    AdminScheduleUpdatedResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/AdminSchedule'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    AssignedCallType:
+      type: object
+      required:
+        - id
+        - name
+        - status
+      properties:
+        id:
+          $ref: '#/components/schemas/ResourceId'
+        name:
+          $ref: '#/components/schemas/CallTypeName'
+        status:
+          $ref: '#/components/schemas/CallTypeStatus'
+      unevaluatedProperties:
+        not: {}
+    AvailabilityDay:
+      type: object
+      required:
+        - date
+        - slots
+      properties:
+        date:
+          type: string
+          format: date
+        slots:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvailabilitySlot'
+      unevaluatedProperties:
+        not: {}
+    AvailabilityOkResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/AvailabilityResponseBody'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    AvailabilityResponseBody:
+      type: object
+      required:
+        - generated_at
+        - timezone
+        - call_type
+        - days
+      properties:
+        generated_at:
+          $ref: '#/components/schemas/MoscowDateTime'
+        timezone:
+          type: string
+          enum:
+            - Europe/Moscow
+        call_type:
+          type: object
+          properties:
+            slug:
+              $ref: '#/components/schemas/CallTypeSlug'
+            name:
+              $ref: '#/components/schemas/CallTypeName'
+            description:
+              anyOf:
+                - $ref: '#/components/schemas/CallTypeDescription'
+                - type: 'null'
+            duration_minutes:
+              $ref: '#/components/schemas/DurationMinutes'
+            call_type_version:
+              $ref: '#/components/schemas/ResourceVersion'
+          required:
+            - slug
+            - name
+            - description
+            - duration_minutes
+            - call_type_version
+          unevaluatedProperties:
+            not: {}
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvailabilityDay'
+          minItems: 14
+          maxItems: 14
+      unevaluatedProperties:
+        not: {}
+    AvailabilitySlot:
+      type: object
+      required:
+        - starts_at
+        - ends_at
+      properties:
+        starts_at:
+          $ref: '#/components/schemas/MoscowSlotDateTime'
+        ends_at:
+          $ref: '#/components/schemas/MoscowSlotDateTime'
+      unevaluatedProperties:
+        not: {}
+    CallPeriod:
+      type: string
+      enum:
+        - upcoming
+        - past
+    CallSearchQuery:
+      type: string
+      maxLength: 200
+    CallTypeChangedError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - call_type_changed
+        message:
+          type: string
+      unevaluatedProperties:
+        not: {}
+    CallTypeChangedResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/CallTypeChangedError'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    CallTypeDeleteBlockedReason:
+      type: string
+      enum:
+        - call_type_has_calls
+    CallTypeDescription:
+      type: string
+      maxLength: 500
+    CallTypeHasCallsError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - call_type_has_calls
+        message:
+          type: string
+      unevaluatedProperties:
+        not: {}
+    CallTypeHasCallsResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/CallTypeHasCallsError'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    CallTypeName:
+      type: string
+      minLength: 1
+      maxLength: 80
+    CallTypeNameConflictError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - call_type_name_conflict
+        message:
+          type: string
+      unevaluatedProperties:
+        not: {}
+    CallTypeNameConflictResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/CallTypeNameConflictError'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    CallTypeNotFoundError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - call_type_not_found
+        message:
+          type: string
+      unevaluatedProperties:
+        not: {}
+    CallTypeNotFoundResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/CallTypeNotFoundError'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    CallTypeSlug:
+      type: string
+      maxLength: 100
+      pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+      description: A stable public slug which is never reused after deletion.
+    CallTypeStatus:
+      type: string
+      enum:
+        - active
+        - disabled
+    CallTypeUnavailableError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - call_type_unavailable
+        message:
+          type: string
+      unevaluatedProperties:
+        not: {}
+    CallTypeUnavailableResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/CallTypeUnavailableError'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    CreateCallRequest:
+      type: object
+      required:
+        - call_type_slug
+        - call_type_version
+        - starts_at
+        - visitor_name
+        - visitor_email
+      properties:
+        call_type_slug:
+          $ref: '#/components/schemas/CallTypeSlug'
+        call_type_version:
+          $ref: '#/components/schemas/ResourceVersion'
+        starts_at:
+          $ref: '#/components/schemas/RequestSlotDateTime'
+        visitor_name:
+          $ref: '#/components/schemas/VisitorName'
+        visitor_email:
+          $ref: '#/components/schemas/VisitorEmail'
+        visitor_notes:
+          anyOf:
+            - $ref: '#/components/schemas/VisitorNotes'
+            - type: 'null'
+      unevaluatedProperties:
+        not: {}
+    CreateCallTypeRequest:
+      type: object
+      required:
+        - name
+        - duration_minutes
+        - schedule_id
+      properties:
+        name:
+          $ref: '#/components/schemas/CallTypeName'
+        description:
+          anyOf:
+            - $ref: '#/components/schemas/CallTypeDescription'
+            - type: 'null'
+        duration_minutes:
+          $ref: '#/components/schemas/DurationMinutes'
+        schedule_id:
+          $ref: '#/components/schemas/ResourceId'
+      unevaluatedProperties:
+        not: {}
+    CreateScheduleRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          $ref: '#/components/schemas/ScheduleName'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/WeeklyDaysRequest'
+    CreatedCall:
+      type: object
+      required:
+        - id
+        - call_type_slug
+        - call_type_name
+        - duration_minutes
+        - starts_at
+        - ends_at
+        - timezone
+        - visitor_name
+        - visitor_email
+        - visitor_notes
+      properties:
+        id:
+          $ref: '#/components/schemas/ResourceId'
+        call_type_slug:
+          $ref: '#/components/schemas/CallTypeSlug'
+        call_type_name:
+          $ref: '#/components/schemas/CallTypeName'
+        duration_minutes:
+          $ref: '#/components/schemas/DurationMinutes'
+        starts_at:
+          $ref: '#/components/schemas/MoscowSlotDateTime'
+        ends_at:
+          $ref: '#/components/schemas/MoscowSlotDateTime'
+        timezone:
+          type: string
+          enum:
+            - Europe/Moscow
+        visitor_name:
+          $ref: '#/components/schemas/VisitorName'
+        visitor_email:
+          $ref: '#/components/schemas/VisitorEmail'
+        visitor_notes:
+          anyOf:
+            - $ref: '#/components/schemas/VisitorNotes'
+            - type: 'null'
+      unevaluatedProperties:
+        not: {}
+    CreatedCallResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/CreatedCall'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    DurationMinutes:
+      type: integer
+      format: int32
+      minimum: 15
+      maximum: 240
+      multipleOf: 5
+      description: Duration in minutes. The service accepts values in five-minute increments.
+    EntityTag:
+      type: string
+      pattern: ^"[1-9][0-9]*"$
+      description: A strong entity tag such as `\"7\"`.
+    FieldError:
+      type: object
+      required:
+        - path
+        - code
+        - message
+      properties:
+        path:
+          type: string
+        code:
+          type: string
+        message:
+          type: string
+      unevaluatedProperties:
+        not: {}
+    HealthOkBody:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+      unevaluatedProperties:
+        not: {}
+    HealthOkResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/HealthOkBody'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    HealthUnavailableBody:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - unavailable
+      unevaluatedProperties:
+        not: {}
+    HealthUnavailableResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/HealthUnavailableBody'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    IdempotencyConflictError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - idempotency_conflict
+        message:
+          type: string
+      unevaluatedProperties:
+        not: {}
+    IdempotencyConflictResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/IdempotencyConflictError'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    IdempotencyKey:
+      type: string
+      pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
+      format: uuid
+      description: A UUID v4 generated by the public client for one normalized request.
+    InternalError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - internal_error
+        message:
+          type: string
+      unevaluatedProperties:
+        not: {}
+    InternalErrorResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/InternalError'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    InvalidCursorError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - invalid_cursor
+        message:
+          type: string
+      unevaluatedProperties:
+        not: {}
+    InvalidCursorResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/InvalidCursorError'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    InvalidRequestError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - invalid_request
+        message:
+          type: string
+      unevaluatedProperties:
+        not: {}
+    InvalidRequestResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/InvalidRequestError'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    LastScheduleError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - last_schedule
+        message:
+          type: string
+      unevaluatedProperties:
+        not: {}
+    LastScheduleResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/LastScheduleError'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    LocalTime:
+      type: string
+      pattern: ^(?:[01][0-9]|2[0-3]):[0-5][05]$
+      description: Local Moscow time in `HH:mm` format.
+    MoscowDateTime:
+      type: string
+      pattern: ^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]\+03:00$
+      format: date-time
+      description: An RFC 3339 timestamp normalized to Europe/Moscow, with no fractional seconds.
+    MoscowSlotDateTime:
+      type: string
+      pattern: ^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][05]:00\+03:00$
+      format: date-time
+      description: A five-minute-grid RFC 3339 timestamp normalized to Europe/Moscow.
+    NoContentResponse:
+      type: object
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    NoStoreHeaders:
+      type: object
+    PageCursor:
+      type: string
+      minLength: 1
+    PreconditionRequiredError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - precondition_required
+        message:
+          type: string
+      unevaluatedProperties:
+        not: {}
+    PreconditionRequiredResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/PreconditionRequiredError'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    PublicCallType:
+      type: object
+      required:
+        - status
+        - call_type_version
+      properties:
+        status:
+          $ref: '#/components/schemas/CallTypeStatus'
+        call_type_version:
+          $ref: '#/components/schemas/ResourceVersion'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/PublicCallTypeSummary'
+    PublicCallTypeList:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicCallTypeSummary'
+      unevaluatedProperties:
+        not: {}
+    PublicCallTypeListOkResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/PublicCallTypeList'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    PublicCallTypeOkResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/PublicCallType'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    PublicCallTypeSummary:
+      type: object
+      required:
+        - slug
+        - name
+        - description
+        - duration_minutes
+      properties:
+        slug:
+          $ref: '#/components/schemas/CallTypeSlug'
+        name:
+          $ref: '#/components/schemas/CallTypeName'
+        description:
+          anyOf:
+            - $ref: '#/components/schemas/CallTypeDescription'
+            - type: 'null'
+        duration_minutes:
+          $ref: '#/components/schemas/DurationMinutes'
+    RequestSlotDateTime:
+      type: string
+      pattern: ^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][05]:00(?:Z|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])$
+      format: date-time
+      description: A five-minute-grid RFC 3339 timestamp with an explicit offset and no fraction.
+    ResourceId:
+      type: string
+      pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
+      format: uuid
+      description: A canonical UUID v7 generated by the server.
+    ResourceVersion:
+      type: string
+      minLength: 1
+      description: An opaque resource version. Clients must not interpret its contents.
+    ScheduleDeleteBlockedReason:
+      type: string
+      enum:
+        - schedule_in_use
+        - last_schedule
+    ScheduleInUseError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - schedule_in_use
+        message:
+          type: string
+      unevaluatedProperties:
+        not: {}
+    ScheduleInUseResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/ScheduleInUseError'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    ScheduleName:
+      type: string
+      minLength: 1
+      maxLength: 80
+    ScheduleNameConflictError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - schedule_name_conflict
+        message:
+          type: string
+      unevaluatedProperties:
+        not: {}
+    ScheduleNameConflictResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/ScheduleNameConflictError'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    ScheduleNotFoundError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - schedule_not_found
+        message:
+          type: string
+      unevaluatedProperties:
+        not: {}
+    ScheduleNotFoundResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/ScheduleNotFoundError'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    ScheduleReference:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          $ref: '#/components/schemas/ResourceId'
+        name:
+          $ref: '#/components/schemas/ScheduleName'
+      unevaluatedProperties:
+        not: {}
+    ScheduleUnavailableError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - schedule_unavailable
+        message:
+          type: string
+      unevaluatedProperties:
+        not: {}
+    ScheduleUnavailableResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/ScheduleUnavailableError'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    SlotUnavailableError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - slot_unavailable
+        message:
+          type: string
+      unevaluatedProperties:
+        not: {}
+    SlotUnavailableResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/SlotUnavailableError'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    UnsupportedMediaTypeError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - unsupported_media_type
+        message:
+          type: string
+      unevaluatedProperties:
+        not: {}
+    UnsupportedMediaTypeResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/UnsupportedMediaTypeError'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    UpdateCallTypeRequest:
+      type: object
+      required:
+        - name
+        - duration_minutes
+        - status
+        - schedule_id
+      properties:
+        name:
+          $ref: '#/components/schemas/CallTypeName'
+        description:
+          anyOf:
+            - $ref: '#/components/schemas/CallTypeDescription'
+            - type: 'null'
+        duration_minutes:
+          $ref: '#/components/schemas/DurationMinutes'
+        status:
+          $ref: '#/components/schemas/CallTypeStatus'
+        schedule_id:
+          $ref: '#/components/schemas/ResourceId'
+      unevaluatedProperties:
+        not: {}
+    UpdateScheduleRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          $ref: '#/components/schemas/ScheduleName'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/WeeklyDaysRequest'
+    UpdateWorkingHoursRequest:
+      type: object
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/WeeklyDaysRequest'
+    ValidationError:
+      type: object
+      required:
+        - code
+        - message
+        - field_errors
+      properties:
+        code:
+          type: string
+          enum:
+            - validation_error
+        message:
+          type: string
+        field_errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldError'
+      unevaluatedProperties:
+        not: {}
+    ValidationErrorResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/ValidationError'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    VersionConflictError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - version_conflict
+        message:
+          type: string
+      unevaluatedProperties:
+        not: {}
+    VersionConflictResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/VersionConflictError'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
+    VisitorEmail:
+      type: string
+      maxLength: 254
+      format: email
+    VisitorName:
+      type: string
+      minLength: 1
+      maxLength: 100
+    VisitorNotes:
+      type: string
+      maxLength: 1000
+    WeeklyDay:
+      type: object
+      required:
+        - day_of_week
+        - intervals
+      properties:
+        day_of_week:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 7
+        intervals:
+          type: array
+          items:
+            $ref: '#/components/schemas/WeeklyInterval'
+      unevaluatedProperties:
+        not: {}
+    WeeklyDaysRequest:
+      type: object
+      required:
+        - days
+      properties:
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/WeeklyDay'
+          minItems: 7
+          maxItems: 7
+    WeeklyInterval:
+      type: object
+      required:
+        - start_time
+        - end_time
+      properties:
+        start_time:
+          $ref: '#/components/schemas/LocalTime'
+        end_time:
+          $ref: '#/components/schemas/LocalTime'
+      unevaluatedProperties:
+        not: {}
+    WorkingHours:
+      type: object
+      required:
+        - timezone
+        - days
+        - version
+      properties:
+        timezone:
+          type: string
+          enum:
+            - Europe/Moscow
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/WeeklyDay'
+          minItems: 7
+          maxItems: 7
+        version:
+          $ref: '#/components/schemas/ResourceVersion'
+      unevaluatedProperties:
+        not: {}
+    WorkingHoursOkResponse:
+      type: object
+      required:
+        - body
+      properties:
+        body:
+          $ref: '#/components/schemas/WorkingHours'
+      unevaluatedProperties:
+        not: {}
+      allOf:
+        - $ref: '#/components/schemas/NoStoreHeaders'
