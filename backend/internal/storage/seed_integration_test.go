@@ -216,6 +216,51 @@ func TestDatabaseStoresCallTypeSnapshotsAndRejectsOverlappingCalls(t *testing.T)
 	}
 }
 
+func TestDatabaseProtectsSuccessfulCallIdempotencyRelation(t *testing.T) {
+	ctx := context.Background()
+	pool := testPool(t)
+	if err := storage.Migrate(ctx, pool); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	if err := storage.Seed(ctx, pool); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	var callTypeID string
+	if err := pool.QueryRow(ctx, `SELECT id FROM call_types WHERE duration_minutes = 30`).Scan(&callTypeID); err != nil {
+		t.Fatalf("read call type: %v", err)
+	}
+	const callID = "018f0000-0000-7000-8000-000000000201"
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO calls (
+			id, call_type_id, call_type_name, duration_minutes, starts_at,
+			visitor_name, visitor_email, visitor_notes
+		) VALUES ($1, $2, 'Снимок', 30, '2026-10-23T10:00:00+03:00', 'Анна', 'anna@example.com', NULL)
+	`, callID, callTypeID); err != nil {
+		t.Fatalf("insert call: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO call_idempotency (key, fingerprint, call_id, response_snapshot)
+		VALUES ('8f0902ca-91a1-4f87-87ed-e3b5b00c86b7', 'fingerprint', $1, '{"status":"created"}')
+	`, callID); err != nil {
+		t.Fatalf("insert idempotency record: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO call_idempotency (key, fingerprint, call_id, response_snapshot)
+		VALUES ('8f0902ca-91a1-4f87-87ed-e3b5b00c86b8', 'other', $1, '{}')
+	`, callID); err == nil {
+		t.Error("a second idempotency record was linked to the same call")
+	}
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO call_idempotency (key, fingerprint, call_id, response_snapshot)
+		VALUES ('018f0000-0000-7000-8000-000000000001', 'wrong-version', $1, '{}')
+	`, callID); err == nil {
+		t.Error("a non-v4 idempotency key was accepted")
+	}
+	if _, err := pool.Exec(ctx, `DELETE FROM calls WHERE id = $1`, callID); err == nil {
+		t.Error("a call linked to idempotency history was deleted")
+	}
+}
+
 func testPool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 	databaseURL := os.Getenv("DATABASE_URL")

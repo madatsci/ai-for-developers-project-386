@@ -50,8 +50,12 @@ func run() error {
 		addr = "127.0.0.1:8080"
 	}
 	server := &http.Server{
-		Addr:              addr,
-		Handler:           httpapi.NewHandler(pool.Ping, httpapi.NewPublicCallTypesService(pool)),
+		Addr: addr,
+		Handler: httpapi.NewHandler(
+			pool.Ping,
+			httpapi.NewPublicCallTypesService(pool),
+			httpapi.NewPublicCallsService(pool),
+		),
 		ReadHeaderTimeout: 5 * time.Second,
 		WriteTimeout:      10 * time.Second,
 		IdleTimeout:       60 * time.Second,
