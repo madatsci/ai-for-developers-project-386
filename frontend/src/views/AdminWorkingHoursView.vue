@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { onBeforeRouteLeave } from 'vue-router'
+import { onBeforeRouteLeave, RouterLink } from 'vue-router'
 import {
   getAdminWorkingHours,
   updateAdminWorkingHours,
@@ -198,10 +198,18 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
       </p>
       <nav class="mt-8 grid gap-1" aria-label="Административные разделы">
         <span class="rounded-lg px-3 py-2.5 text-sm text-slate-400">Звонки</span>
-        <span class="rounded-lg px-3 py-2.5 text-sm text-slate-400">Типы и расписания</span>
-        <span class="rounded-lg bg-white px-3 py-2.5 text-sm font-semibold text-slate-950">
+        <RouterLink
+          to="/admin/schedules"
+          class="rounded-lg px-3 py-2.5 text-sm text-slate-300 hover:bg-slate-900"
+        >
+          Типы и расписания
+        </RouterLink>
+        <RouterLink
+          to="/admin/working-hours"
+          class="rounded-lg bg-white px-3 py-2.5 text-sm font-semibold text-slate-950"
+        >
           Режим работы
-        </span>
+        </RouterLink>
       </nav>
       <p class="mt-8 border-t border-slate-800 pt-5 text-xs leading-5 text-slate-400">
         Общая граница времени для всех расписаний и типов звонков.

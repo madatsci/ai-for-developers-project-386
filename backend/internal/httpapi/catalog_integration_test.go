@@ -288,6 +288,7 @@ func newIntegrationHandler(
 	return NewHandler(pool.Ping, HandlerServices{
 		PublicCallTypes:   publicCallTypes,
 		PublicCalls:       publicCalls,
+		AdminSchedules:    NewAdminSchedulesService(pool),
 		AdminWorkingHours: NewAdminWorkingHoursService(pool),
 	})
 }

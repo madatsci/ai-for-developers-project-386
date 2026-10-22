@@ -65,6 +65,7 @@ func TestRoutes(t *testing.T) {
 		{http.MethodGet, "/api/missing", http.StatusNotFound},
 		{http.MethodGet, "/api/v1/public/call-types", http.StatusOK},
 		{http.MethodPost, "/api/v1/public/calls", http.StatusUnsupportedMediaType},
+		{http.MethodGet, "/api/v1/admin/schedules", http.StatusOK},
 	} {
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, httptest.NewRequest(tt.method, tt.path, nil))
@@ -92,6 +93,7 @@ func newTestHandler(ping func(context.Context) error) http.Handler {
 	return NewHandler(ping, HandlerServices{
 		PublicCallTypes:   publicCallTypesStub{},
 		PublicCalls:       publicCallsStub{},
+		AdminSchedules:    adminSchedulesStub{},
 		AdminWorkingHours: adminWorkingHoursStub{},
 	})
 }
@@ -103,6 +105,24 @@ func (publicCallsStub) CreateCall(context.Context, string, generated.CreateCallR
 }
 
 type adminWorkingHoursStub struct{}
+
+type adminSchedulesStub struct{}
+
+func (adminSchedulesStub) ListAdminSchedules(context.Context) (generated.ImplResponse, error) {
+	return domainResponse(http.StatusOK, generated.AdminScheduleList{Items: []generated.AdminSchedule{}}), nil
+}
+
+func (adminSchedulesStub) CreateAdminSchedule(context.Context, generated.CreateScheduleRequest) (generated.ImplResponse, error) {
+	return generated.Response(http.StatusCreated, nil), nil
+}
+
+func (adminSchedulesStub) UpdateAdminSchedule(context.Context, string, string, generated.UpdateScheduleRequest) (generated.ImplResponse, error) {
+	return generated.Response(http.StatusOK, nil), nil
+}
+
+func (adminSchedulesStub) DeleteAdminSchedule(context.Context, string, string) (generated.ImplResponse, error) {
+	return generated.Response(http.StatusNoContent, nil), nil
+}
 
 func (adminWorkingHoursStub) GetAdminWorkingHours(context.Context) (generated.ImplResponse, error) {
 	return generated.Response(http.StatusOK, nil), nil
