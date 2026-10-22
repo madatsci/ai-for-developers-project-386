@@ -10,7 +10,7 @@ export FRONTEND_PORT ?= 5175
 GOLANGCI_VERSION := v2.15.0
 GOLANGCI := $(CURDIR)/.bin/$(GOLANGCI_VERSION)/golangci-lint
 
-.PHONY: help setup install tools db-up db-down dev dev-backend dev-frontend test test-backend test-frontend lint lint-backend lint-frontend lint-typespec lint-client lint-server format build build-backend build-frontend build-typespec generate-client generate-server smoke check
+.PHONY: help setup install tools db-up db-down dev dev-backend dev-frontend test test-backend test-frontend lint lint-backend lint-frontend lint-typespec lint-client lint-server format build build-backend build-frontend build-typespec generate generate-client generate-server smoke check
 
 help:
 	@echo "make setup        Install dependencies and the pinned Go linter"
@@ -19,6 +19,7 @@ help:
 	@echo "make lint         Check Go, frontend and TypeSpec"
 	@echo "make format       Format Go, frontend and TypeSpec source files"
 	@echo "make build        Build backend, frontend, OpenAPI and client SDK"
+	@echo "make generate     Generate OpenAPI, the frontend SDK and Go server package"
 	@echo "make generate-client  Generate the frontend SDK from TypeSpec"
 	@echo "make generate-server  Generate the Go server package from TypeSpec"
 	@echo "make lint-server      Check the generated Go server package for drift"
@@ -101,6 +102,8 @@ build-frontend: lint-client
 
 build-typespec:
 	npm --prefix api run build
+
+generate: generate-client generate-server
 
 generate-client: build-typespec
 	npm --prefix frontend run generate:api
