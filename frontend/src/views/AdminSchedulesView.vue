@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { onBeforeRouteLeave, RouterLink } from 'vue-router'
+import AdminSidebar from '@/components/AdminSidebar.vue'
 import {
   createAdminSchedule,
   deleteAdminSchedule,
@@ -363,30 +364,10 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
 
 <template>
   <div class="min-h-svh bg-slate-100 text-slate-950 lg:grid lg:grid-cols-[17rem_1fr]">
-    <aside class="bg-slate-950 px-6 py-6 text-white lg:min-h-svh lg:px-7 lg:py-8">
-      <p class="text-lg font-bold tracking-tight">Календарь звонков</p>
-      <p class="mt-1 text-xs font-semibold tracking-[0.16em] text-slate-400 uppercase">
-        Управление
-      </p>
-      <nav class="mt-8 grid gap-1" aria-label="Административные разделы">
-        <span class="rounded-lg px-3 py-2.5 text-sm text-slate-400">Звонки</span>
-        <RouterLink
-          to="/admin/schedules"
-          class="rounded-lg bg-white px-3 py-2.5 text-sm font-semibold text-slate-950"
-        >
-          Типы и расписания
-        </RouterLink>
-        <RouterLink
-          to="/admin/working-hours"
-          class="rounded-lg px-3 py-2.5 text-sm text-slate-300 hover:bg-slate-900"
-        >
-          Режим работы
-        </RouterLink>
-      </nav>
-      <p class="mt-8 border-t border-slate-800 pt-5 text-xs leading-5 text-slate-400">
-        Расписание задаёт доступность типов звонков внутри общего режима работы.
-      </p>
-    </aside>
+    <AdminSidebar
+      active="types-and-schedules"
+      note="Расписание задаёт доступность типов звонков внутри общего режима работы."
+    />
 
     <main class="px-4 py-8 sm:px-8 lg:px-12 lg:py-10">
       <div class="mx-auto max-w-7xl">
@@ -400,14 +381,22 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
               Создавайте именованные наборы недельной доступности и назначайте их типам звонков.
             </p>
           </div>
-          <button
-            type="button"
-            data-create-schedule
-            class="mt-5 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white sm:mt-0"
-            @click="startCreating"
-          >
-            + Новое расписание
-          </button>
+          <div class="mt-5 flex flex-wrap items-center gap-3 sm:mt-0">
+            <RouterLink
+              to="/admin/call-types"
+              class="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold"
+            >
+              Типы звонков
+            </RouterLink>
+            <button
+              type="button"
+              data-create-schedule
+              class="rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white"
+              @click="startCreating"
+            >
+              + Новое расписание
+            </button>
+          </div>
         </header>
 
         <div v-if="loading" class="mt-8 rounded-xl bg-white p-8" aria-busy="true">

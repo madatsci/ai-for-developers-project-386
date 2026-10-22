@@ -6,6 +6,7 @@ import AdminPrototypeView from '@/views/admin-prototype/AdminPrototypeView.vue'
 import CallsPrototypeView from '@/views/calls-prototype/CallsPrototypeView.vue'
 import AdminWorkingHoursView from '@/views/AdminWorkingHoursView.vue'
 import AdminSchedulesView from '@/views/AdminSchedulesView.vue'
+import AdminCallTypesView from '@/views/AdminCallTypesView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -14,6 +15,11 @@ const router = createRouter({
     { path: '/booking', name: 'booking', component: BookingCatalogView },
     { path: '/booking/:typeSlug', name: 'booking-type', component: BookingView },
     { path: '/admin/prototype', name: 'admin-prototype', component: AdminPrototypeView },
+    {
+      path: '/admin/call-types',
+      name: 'admin-call-types',
+      component: AdminCallTypesView,
+    },
     {
       path: '/admin/schedules',
       name: 'admin-schedules',

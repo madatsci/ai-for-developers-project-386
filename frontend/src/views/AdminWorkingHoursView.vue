@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { onBeforeRouteLeave, RouterLink } from 'vue-router'
+import { onBeforeRouteLeave } from 'vue-router'
+import AdminSidebar from '@/components/AdminSidebar.vue'
 import {
   getAdminWorkingHours,
   updateAdminWorkingHours,
@@ -191,30 +192,10 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
 
 <template>
   <div class="min-h-svh bg-slate-100 text-slate-950 lg:grid lg:grid-cols-[17rem_1fr]">
-    <aside class="bg-slate-950 px-6 py-6 text-white lg:min-h-svh lg:px-7 lg:py-8">
-      <p class="text-lg font-bold tracking-tight">Календарь звонков</p>
-      <p class="mt-1 text-xs font-semibold tracking-[0.16em] text-slate-400 uppercase">
-        Управление
-      </p>
-      <nav class="mt-8 grid gap-1" aria-label="Административные разделы">
-        <span class="rounded-lg px-3 py-2.5 text-sm text-slate-400">Звонки</span>
-        <RouterLink
-          to="/admin/schedules"
-          class="rounded-lg px-3 py-2.5 text-sm text-slate-300 hover:bg-slate-900"
-        >
-          Типы и расписания
-        </RouterLink>
-        <RouterLink
-          to="/admin/working-hours"
-          class="rounded-lg bg-white px-3 py-2.5 text-sm font-semibold text-slate-950"
-        >
-          Режим работы
-        </RouterLink>
-      </nav>
-      <p class="mt-8 border-t border-slate-800 pt-5 text-xs leading-5 text-slate-400">
-        Общая граница времени для всех расписаний и типов звонков.
-      </p>
-    </aside>
+    <AdminSidebar
+      active="working-hours"
+      note="Общая граница времени для всех расписаний и типов звонков."
+    />
 
     <main class="px-4 py-8 sm:px-8 lg:px-12 lg:py-10">
       <div class="mx-auto max-w-5xl">
