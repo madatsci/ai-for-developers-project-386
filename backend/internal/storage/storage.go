@@ -114,6 +114,28 @@ CREATE TABLE IF NOT EXISTS call_types (
 
 CREATE UNIQUE INDEX IF NOT EXISTS call_types_active_name_key_idx
     ON call_types (name_key) WHERE deleted_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS calls (
+    id uuid PRIMARY KEY,
+    call_type_id uuid NOT NULL REFERENCES call_types(id) ON DELETE RESTRICT,
+    call_type_name text NOT NULL,
+    duration_minutes integer NOT NULL,
+    starts_at timestamptz NOT NULL,
+    ends_at timestamptz GENERATED ALWAYS AS (
+        ((starts_at AT TIME ZONE 'UTC') + duration_minutes * interval '1 minute') AT TIME ZONE 'UTC'
+    ) STORED,
+    visitor_name text NOT NULL,
+    visitor_email text NOT NULL,
+    visitor_notes text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    CHECK (substring(id::text, 15, 1) = '7'),
+    CHECK (char_length(call_type_name) BETWEEN 1 AND 80),
+    CHECK (duration_minutes BETWEEN 15 AND 240 AND duration_minutes % 5 = 0),
+    CHECK (char_length(visitor_name) BETWEEN 1 AND 100),
+    CHECK (char_length(visitor_email) BETWEEN 3 AND 254),
+    CHECK (visitor_notes IS NULL OR char_length(visitor_notes) <= 1000),
+    EXCLUDE USING gist (tstzrange(starts_at, ends_at, '[)') WITH &&)
+);
 `
 
 // Migrate creates the storage needed by the current application contract.

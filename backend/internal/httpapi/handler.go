@@ -14,8 +14,12 @@ func NewHandler(
 ) http.Handler {
 	healthController := generated.NewHealthAPIController(healthService{ping: ping})
 	publicController := generated.NewPublicCallTypesAPIController(publicCallTypes)
-	listRoute := publicController.Routes()["ListPublicCallTypes"]
-	routers := []generated.Router{healthController, routeSubset{routes: []generated.Route{listRoute}}}
+	publicRoutes := publicController.Routes()
+	routers := []generated.Router{healthController, routeSubset{routes: []generated.Route{
+		publicRoutes["ListPublicCallTypes"],
+		publicRoutes["GetPublicCallType"],
+		publicRoutes["GetPublicCallTypeAvailability"],
+	}}}
 	return exactJSONContentType(generated.NewRouter(routers...))
 }
 
