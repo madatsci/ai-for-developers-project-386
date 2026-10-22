@@ -64,7 +64,7 @@ func TestRoutes(t *testing.T) {
 		{http.MethodPost, "/api/health", http.StatusMethodNotAllowed},
 		{http.MethodGet, "/api/missing", http.StatusNotFound},
 		{http.MethodGet, "/api/v1/public/call-types", http.StatusOK},
-		{http.MethodPost, "/api/v1/public/calls", http.StatusNotFound},
+		{http.MethodPost, "/api/v1/public/calls", http.StatusUnsupportedMediaType},
 	} {
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, httptest.NewRequest(tt.method, tt.path, nil))
@@ -89,5 +89,11 @@ func (publicCallTypesStub) GetPublicCallTypeAvailability(context.Context, string
 }
 
 func newTestHandler(ping func(context.Context) error) http.Handler {
-	return NewHandler(ping, publicCallTypesStub{})
+	return NewHandler(ping, publicCallTypesStub{}, publicCallsStub{})
+}
+
+type publicCallsStub struct{}
+
+func (publicCallsStub) CreateCall(context.Context, string, generated.CreateCallRequest) (generated.ImplResponse, error) {
+	return generated.Response(http.StatusCreated, nil), nil
 }

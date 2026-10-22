@@ -163,9 +163,9 @@ func readWeeklyIntervals(
 	ctx context.Context,
 	querier weeklyIntervalQuerier,
 	query string,
-	parentID string,
+	arguments ...any,
 ) (map[int][]minuteInterval, error) {
-	rows, err := querier.Query(ctx, query, parentID)
+	rows, err := querier.Query(ctx, query, arguments...)
 	if err != nil {
 		return nil, err
 	}

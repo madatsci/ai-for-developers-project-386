@@ -1,15 +1,22 @@
 import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { getPublicCallType, getPublicCallTypeAvailability, listPublicCallTypes, routeState } =
-  vi.hoisted(() => ({
-    getPublicCallType: vi.fn(),
-    getPublicCallTypeAvailability: vi.fn(),
-    listPublicCallTypes: vi.fn(),
-    routeState: { typeSlug: 'zvonok-na-30-minut' },
-  }))
+const {
+  createCall,
+  getPublicCallType,
+  getPublicCallTypeAvailability,
+  listPublicCallTypes,
+  routeState,
+} = vi.hoisted(() => ({
+  createCall: vi.fn(),
+  getPublicCallType: vi.fn(),
+  getPublicCallTypeAvailability: vi.fn(),
+  listPublicCallTypes: vi.fn(),
+  routeState: { typeSlug: 'zvonok-na-30-minut' },
+}))
 
 vi.mock('@/api/generated', () => ({
+  createCall,
   getPublicCallType,
   getPublicCallTypeAvailability,
   listPublicCallTypes,
@@ -42,6 +49,19 @@ const activeTypes = [
     duration_minutes: 15,
   },
 ]
+
+const createdCall = {
+  id: '018f0000-0000-7000-8000-000000000301',
+  call_type_slug: 'zvonok-na-30-minut',
+  call_type_name: 'Звонок на 30 минут',
+  duration_minutes: 30,
+  starts_at: '2026-10-21T11:30:00+03:00',
+  ends_at: '2026-10-21T12:00:00+03:00',
+  timezone: 'Europe/Moscow',
+  visitor_name: 'Йрина',
+  visitor_email: 'irina@example.com',
+  visitor_notes: 'Первая строка\nВторая строка',
+}
 
 function availability(slotsOnFirstDay = true) {
   const dates = [
@@ -93,12 +113,122 @@ function mountView() {
 
 describe('BookingView', () => {
   beforeEach(() => {
+    sessionStorage.clear()
     routeState.typeSlug = 'zvonok-na-30-minut'
     getPublicCallType.mockReset()
     getPublicCallTypeAvailability.mockReset()
     listPublicCallTypes.mockReset()
+    createCall.mockReset()
     getPublicCallType.mockResolvedValue({ data: activeCallType })
     listPublicCallTypes.mockResolvedValue({ data: { items: activeTypes } })
+  })
+
+  it('books a selected slot through the generated SDK and shows the immutable confirmation', async () => {
+    getPublicCallTypeAvailability.mockResolvedValueOnce({ data: availability() })
+    createCall.mockResolvedValueOnce({ data: createdCall })
+
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.get('[data-slot]').trigger('click')
+    await wrapper.get('input[name="visitor_name"]').setValue('  Йрина  ')
+    await wrapper.get('input[name="visitor_email"]').setValue(' irina@EXAMPLE.COM ')
+    await wrapper
+      .get('textarea[name="visitor_notes"]')
+      .setValue('  Первая строка\r\nВторая строка  ')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(createCall).toHaveBeenCalledExactlyOnceWith({
+      body: {
+        call_type_slug: 'zvonok-na-30-minut',
+        call_type_version: '1',
+        starts_at: '2026-10-21T11:30:00+03:00',
+        visitor_name: 'Йрина',
+        visitor_email: 'irina@example.com',
+        visitor_notes: 'Первая строка\nВторая строка',
+      },
+      headers: {
+        'Idempotency-Key': expect.stringMatching(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+        ),
+      },
+    })
+    const confirmation = wrapper.get('[data-confirmation]').text()
+    expect(confirmation).toContain('Звонок на 30 минут')
+    expect(confirmation).toContain('21 октября 2026 г.')
+    expect(confirmation).toContain('11:30–12:00')
+    expect(confirmation).toContain('30 минут')
+    expect(confirmation).toContain('Йрина')
+    expect(confirmation).toContain('irina@example.com')
+    expect(confirmation).toContain('Первая строка\nВторая строка')
+    expect(confirmation).toContain('Письмо с подтверждением не отправляется')
+    expect(wrapper.text()).not.toContain('018f0000-0000-7000-8000-000000000301')
+    expect(JSON.parse(sessionStorage.getItem('booking-confirmation') ?? 'null')).toEqual(
+      expect.objectContaining({ visitor_name: 'Йрина' }),
+    )
+  })
+
+  it('reuses the idempotency key for a network retry and replaces it after input changes', async () => {
+    getPublicCallTypeAvailability.mockResolvedValueOnce({ data: availability() })
+    createCall.mockRejectedValue(new Error('network unavailable'))
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.get('[data-slot]').trigger('click')
+    await wrapper.get('input[name="visitor_name"]').setValue('Анна')
+    await wrapper.get('input[name="visitor_email"]').setValue('anna@example.com')
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    const keyForCall = (index: number) => {
+      const call = createCall.mock.calls[index]
+      if (!call) throw new Error(`createCall invocation ${index} is missing`)
+      return call[0].headers['Idempotency-Key']
+    }
+    const firstKey = keyForCall(0)
+    expect(wrapper.get('[role="alert"]').text()).toContain('Повторите отправку')
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(keyForCall(1)).toBe(firstKey)
+
+    await wrapper.get('input[name="visitor_name"]').setValue('Мария')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(keyForCall(2)).not.toBe(firstKey)
+  })
+
+  it('keeps the idempotency key after reload and reselecting the same slot', async () => {
+    getPublicCallTypeAvailability.mockResolvedValue({ data: availability() })
+    createCall.mockRejectedValue(new Error('network unavailable'))
+    const firstView = mountView()
+    await flushPromises()
+    await firstView.get('[data-slot]').trigger('click')
+    await firstView.get('input[name="visitor_name"]').setValue('Анна')
+    await firstView.get('input[name="visitor_email"]').setValue('anna@example.com')
+    await firstView.get('form').trigger('submit')
+    await flushPromises()
+    const firstKey = createCall.mock.calls[0]?.[0].headers['Idempotency-Key']
+    firstView.unmount()
+
+    const reloadedView = mountView()
+    await flushPromises()
+    await reloadedView.get('[data-slot]').trigger('click')
+    await reloadedView.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(createCall.mock.calls[1]?.[0].headers['Idempotency-Key']).toBe(firstKey)
+  })
+
+  it('restores the confirmation in the same tab without exposing the internal id', async () => {
+    sessionStorage.setItem('booking-confirmation', JSON.stringify(createdCall))
+    getPublicCallTypeAvailability.mockResolvedValueOnce({ data: availability() })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.get('[data-confirmation]').text()).toContain('Звонок забронирован')
+    expect(wrapper.get('[data-confirmation]').text()).toContain('Йрина')
+    expect(wrapper.text()).not.toContain(createdCall.id)
   })
 
   it('keeps a scheduler skeleton until it renders all 14 dates and their slots', async () => {

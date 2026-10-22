@@ -136,6 +136,15 @@ CREATE TABLE IF NOT EXISTS calls (
     CHECK (visitor_notes IS NULL OR char_length(visitor_notes) <= 1000),
     EXCLUDE USING gist (tstzrange(starts_at, ends_at, '[)') WITH &&)
 );
+
+CREATE TABLE IF NOT EXISTS call_idempotency (
+    key uuid PRIMARY KEY,
+    fingerprint text NOT NULL,
+    call_id uuid UNIQUE NOT NULL REFERENCES calls(id) ON DELETE RESTRICT,
+    response_snapshot jsonb NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    CHECK (substring(key::text, 15, 1) = '4')
+);
 `
 
 // Migrate creates the storage needed by the current application contract.
@@ -177,15 +186,15 @@ func Seed(ctx context.Context, pool *pgxpool.Pool) error {
 		return errors.New("partial domain data exists without an organizer")
 	}
 
-	organizerID, err := newUUIDv7()
+	organizerID, err := NewUUIDv7()
 	if err != nil {
 		return err
 	}
-	workingHoursID, err := newUUIDv7()
+	workingHoursID, err := NewUUIDv7()
 	if err != nil {
 		return err
 	}
-	scheduleID, err := newUUIDv7()
+	scheduleID, err := NewUUIDv7()
 	if err != nil {
 		return err
 	}
@@ -207,7 +216,7 @@ func Seed(ctx context.Context, pool *pgxpool.Pool) error {
 		}
 	}
 	for _, duration := range []int{15, 30, 60} {
-		id, err := newUUIDv7()
+		id, err := NewUUIDv7()
 		if err != nil {
 			return err
 		}
@@ -231,7 +240,8 @@ func normalizedKey(value string) string {
 	return norm.NFC.String(cases.Fold().String(canonical))
 }
 
-func newUUIDv7() (string, error) {
+// NewUUIDv7 returns a canonical UUIDv7 for persisted domain resources.
+func NewUUIDv7() (string, error) {
 	var value [16]byte
 	if _, err := rand.Read(value[:]); err != nil {
 		return "", fmt.Errorf("generate UUIDv7: %w", err)
