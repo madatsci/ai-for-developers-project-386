@@ -121,6 +121,24 @@ describe('AdminCallTypesView', () => {
     expect(wrapper.text()).toContain('razbor-proekta')
   })
 
+  it('uses separate list and editor states on mobile', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    const list = wrapper.get('[aria-label="Список типов звонков"]')
+    const form = wrapper.get('form')
+    expect(list.classes()).toContain('block')
+    expect(form.classes()).toContain('hidden')
+
+    await wrapper.get(`[data-select-call-type="${callType.id}"]`).trigger('click')
+    expect(list.classes()).toContain('hidden')
+    expect(form.classes()).toContain('block')
+
+    await wrapper.get('[data-mobile-call-type-back]').trigger('click')
+    expect(list.classes()).toContain('block')
+    expect(form.classes()).toContain('hidden')
+  })
+
   it('updates with If-Match, preserves edits on conflict, and protects dirty navigation', async () => {
     updateAdminCallType.mockResolvedValue({
       error: { code: 'version_conflict', message: 'stale' },

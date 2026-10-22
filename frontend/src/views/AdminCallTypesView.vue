@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { onBeforeRouteLeave, RouterLink } from 'vue-router'
+import AdminSidebar from '@/components/AdminSidebar.vue'
 import {
   createAdminCallType,
   deleteAdminCallType,
@@ -31,6 +32,7 @@ const callTypes = ref<AdminCallType[]>([])
 const schedules = ref<AdminSchedule[]>([])
 const selectedId = ref<string | null>(null)
 const creating = ref(false)
+const mobileEditing = ref(false)
 const form = ref<CallTypeForm | null>(null)
 const confirmedForm = ref<CallTypeForm | null>(null)
 const saving = ref(false)
@@ -77,10 +79,11 @@ function sortCallTypes(items: AdminCallType[]) {
   })
 }
 
-function acceptCallType(callType: AdminCallType) {
+function acceptCallType(callType: AdminCallType, openMobile = false) {
   const next = callTypeForm(callType)
   selectedId.value = callType.id
   creating.value = false
+  mobileEditing.value = openMobile
   form.value = next
   confirmedForm.value = cloneForm(next)
   validationAttempted.value = false
@@ -129,15 +132,20 @@ function startCreating() {
   }
   selectedId.value = null
   creating.value = true
+  mobileEditing.value = true
   form.value = next
   confirmedForm.value = cloneForm(next)
   resetFeedback()
 }
 
 function selectCallType(callType: AdminCallType) {
-  if (callType.id === selectedId.value || !confirmDiscard()) return
+  if (callType.id === selectedId.value) {
+    mobileEditing.value = true
+    return
+  }
+  if (!confirmDiscard()) return
   resetFeedback()
-  acceptCallType(callType)
+  acceptCallType(callType, true)
 }
 
 function validateForm() {
@@ -219,7 +227,7 @@ async function saveCallType() {
     else callTypes.value.push(saved)
     callTypes.value = sortCallTypes(callTypes.value)
     if (JSON.stringify(form.value) === JSON.stringify(submitted)) {
-      acceptCallType(saved)
+      acceptCallType(saved, true)
     } else {
       selectedId.value = saved.id
       creating.value = false
@@ -267,7 +275,7 @@ async function removeCallType() {
     const index = callTypes.value.findIndex((item) => item.id === callType.id)
     callTypes.value.splice(index, 1)
     const next = callTypes.value[Math.min(index, callTypes.value.length - 1)]
-    if (next) acceptCallType(next)
+    if (next) acceptCallType(next, true)
     else {
       selectedId.value = null
       form.value = null
@@ -279,6 +287,11 @@ async function removeCallType() {
   } finally {
     deleting.value = false
   }
+}
+
+function showMobileList() {
+  if (!confirmDiscard()) return
+  mobileEditing.value = false
 }
 
 async function copyPublicLink() {
@@ -316,30 +329,10 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
 
 <template>
   <div class="min-h-svh bg-slate-100 text-slate-950 lg:grid lg:grid-cols-[17rem_1fr]">
-    <aside class="bg-slate-950 px-6 py-6 text-white lg:min-h-svh lg:px-7 lg:py-8">
-      <p class="text-lg font-bold tracking-tight">Календарь звонков</p>
-      <p class="mt-1 text-xs font-semibold tracking-[0.16em] text-slate-400 uppercase">
-        Управление
-      </p>
-      <nav class="mt-8 grid gap-1" aria-label="Административные разделы">
-        <span class="rounded-lg px-3 py-2.5 text-sm text-slate-400">Звонки</span>
-        <RouterLink
-          to="/admin/call-types"
-          class="rounded-lg bg-white px-3 py-2.5 text-sm font-semibold text-slate-950"
-          >Типы звонков</RouterLink
-        >
-        <RouterLink
-          to="/admin/schedules"
-          class="rounded-lg px-3 py-2.5 text-sm text-slate-300 hover:bg-slate-900"
-          >Расписания</RouterLink
-        >
-        <RouterLink
-          to="/admin/working-hours"
-          class="rounded-lg px-3 py-2.5 text-sm text-slate-300 hover:bg-slate-900"
-          >Режим работы</RouterLink
-        >
-      </nav>
-    </aside>
+    <AdminSidebar
+      active="types-and-schedules"
+      note="Типы звонков используют именованные расписания внутри общего режима работы."
+    />
 
     <main class="px-4 py-8 sm:px-8 lg:px-12 lg:py-10">
       <div class="mx-auto max-w-7xl">
@@ -353,15 +346,23 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
               Управляйте длительностью, расписанием и доступностью публичных вариантов звонка.
             </p>
           </div>
-          <button
-            type="button"
-            data-create-call-type
-            class="mt-5 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-45 sm:mt-0"
-            :disabled="schedules.length === 0"
-            @click="startCreating"
-          >
-            + Создать тип звонка
-          </button>
+          <div class="mt-5 flex flex-wrap items-center gap-3 sm:mt-0">
+            <RouterLink
+              to="/admin/schedules"
+              class="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold"
+            >
+              Расписания
+            </RouterLink>
+            <button
+              type="button"
+              data-create-call-type
+              class="rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-45"
+              :disabled="schedules.length === 0"
+              @click="startCreating"
+            >
+              + Создать тип звонка
+            </button>
+          </div>
         </header>
 
         <p v-if="actionError" class="mt-6 text-sm font-medium text-red-700" role="alert">
@@ -390,7 +391,11 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
         </div>
 
         <div v-else class="mt-8 grid gap-6 lg:grid-cols-[minmax(17rem,23rem)_minmax(0,1fr)]">
-          <section aria-label="Список типов звонков" class="space-y-3">
+          <section
+            aria-label="Список типов звонков"
+            class="space-y-3"
+            :class="mobileEditing ? 'hidden lg:block' : 'block'"
+          >
             <div
               v-if="callTypes.length === 0"
               class="rounded-xl border border-dashed border-slate-300 bg-white p-6"
@@ -433,7 +438,20 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
             </button>
           </section>
 
-          <form v-if="form" class="min-w-0" @submit.prevent="saveCallType">
+          <form
+            v-if="form"
+            class="min-w-0"
+            :class="mobileEditing ? 'block' : 'hidden lg:block'"
+            @submit.prevent="saveCallType"
+          >
+            <button
+              type="button"
+              data-mobile-call-type-back
+              class="mb-4 text-sm font-semibold text-blue-700 lg:hidden"
+              @click="showMobileList"
+            >
+              ← К списку типов
+            </button>
             <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
               <div class="grid gap-5 sm:grid-cols-2">
                 <div class="sm:col-span-2">

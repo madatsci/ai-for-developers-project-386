@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"unicode"
 	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
@@ -313,9 +312,12 @@ func validateCallTypeRequest(
 }
 
 func scheduleExists(ctx context.Context, tx pgx.Tx, scheduleID string) (bool, error) {
-	var exists bool
-	err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM schedules WHERE id = $1)`, scheduleID).Scan(&exists)
-	return exists, err
+	var found int
+	err := tx.QueryRow(ctx, `SELECT 1 FROM schedules WHERE id = $1 FOR KEY SHARE`, scheduleID).Scan(&found)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 func nextCallTypeSlug(ctx context.Context, tx pgx.Tx, name, id string) (string, error) {
@@ -347,25 +349,24 @@ func callTypeSlugBase(value string) string {
 	var result strings.Builder
 	lastDash := true
 	for _, r := range strings.ToLower(norm.NFC.String(value)) {
-		piece := transliterateRussian(r)
-		if piece == "" && ((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')) {
-			piece = string(r)
-		}
-		if piece == "" || unicode.IsSpace(r) {
-			if !lastDash {
-				result.WriteByte('-')
-				lastDash = true
+		if piece, recognized := russianTransliteration[r]; recognized {
+			result.WriteString(piece)
+			if piece != "" {
+				lastDash = false
 			}
 			continue
 		}
-		result.WriteString(piece)
-		lastDash = false
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			result.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			result.WriteByte('-')
+			lastDash = true
+		}
 	}
 	return strings.Trim(result.String(), "-")
-}
-
-func transliterateRussian(r rune) string {
-	return russianTransliteration[r]
 }
 
 func callTypePrecondition(ifMatch string) (int64, generated.ImplResponse, bool) {

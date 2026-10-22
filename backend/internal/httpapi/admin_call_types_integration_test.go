@@ -47,7 +47,7 @@ func TestAdminCallTypesListsAndCreatesStablePublicType(t *testing.T) {
 	}
 	created := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/call-types", bytes.NewBufferString(`{
-		"name":"  Разбор проекта  ",
+		"name":"  Разбор объекта  ",
 		"description":"  Обсудим архитектуру  ",
 		"duration_minutes":45,
 		"schedule_id":"`+scheduleID+`"
@@ -64,7 +64,7 @@ func TestAdminCallTypesListsAndCreatesStablePublicType(t *testing.T) {
 	if err := json.Unmarshal(created.Body.Bytes(), &callType); err != nil {
 		t.Fatalf("decode created call type: %v", err)
 	}
-	if callType.Name != "Разбор проекта" || callType.Slug != "razbor-proekta" || callType.Status != generated.ACTIVE {
+	if callType.Name != "Разбор объекта" || callType.Slug != "razbor-obekta" || callType.Status != generated.ACTIVE {
 		t.Errorf("created call type = %+v", callType)
 	}
 	if callType.Description == nil || *callType.Description != "Обсудим архитектуру" {
@@ -72,7 +72,7 @@ func TestAdminCallTypesListsAndCreatesStablePublicType(t *testing.T) {
 	}
 
 	public := httptest.NewRecorder()
-	handler.ServeHTTP(public, httptest.NewRequest(http.MethodGet, "/api/v1/public/call-types/razbor-proekta", nil))
+	handler.ServeHTTP(public, httptest.NewRequest(http.MethodGet, "/api/v1/public/call-types/razbor-obekta", nil))
 	if public.Code != http.StatusOK {
 		t.Fatalf("public status = %d, want 200; body=%s", public.Code, public.Body.String())
 	}
@@ -127,6 +127,20 @@ func TestAdminCallTypeUpdateIsConditionalAndPreservesCallSnapshot(t *testing.T) 
 	if callType.Description != nil || callType.CanDelete || callType.DeleteBlockedReason == nil || *callType.DeleteBlockedReason != generated.CALL_TYPE_HAS_CALLS {
 		t.Errorf("updated nullable/deletion state = description %v can_delete %v reason %v", callType.Description, callType.CanDelete, callType.DeleteBlockedReason)
 	}
+	publicDisabled := httptest.NewRecorder()
+	handler.ServeHTTP(publicDisabled, httptest.NewRequest(http.MethodGet, "/api/v1/public/call-types/zvonok-na-30-minut", nil))
+	if publicDisabled.Code != http.StatusOK ||
+		!bytes.Contains(publicDisabled.Body.Bytes(), []byte(`"name":"Архитектурный разбор"`)) ||
+		!bytes.Contains(publicDisabled.Body.Bytes(), []byte(`"duration_minutes":45`)) ||
+		!bytes.Contains(publicDisabled.Body.Bytes(), []byte(`"status":"disabled"`)) ||
+		!bytes.Contains(publicDisabled.Body.Bytes(), []byte(`"call_type_version":"2"`)) {
+		t.Errorf("disabled public detail = status %d body %s", publicDisabled.Code, publicDisabled.Body.String())
+	}
+	publicList := httptest.NewRecorder()
+	handler.ServeHTTP(publicList, httptest.NewRequest(http.MethodGet, "/api/v1/public/call-types", nil))
+	if bytes.Contains(publicList.Body.Bytes(), []byte(`"slug":"zvonok-na-30-minut"`)) {
+		t.Errorf("disabled type remains public: %s", publicList.Body.String())
+	}
 
 	stale := httptest.NewRecorder()
 	staleRequest := httptest.NewRequest(http.MethodPut, "/api/v1/admin/call-types/"+id, bytes.NewBufferString(updateBody))
@@ -137,9 +151,59 @@ func TestAdminCallTypeUpdateIsConditionalAndPreservesCallSnapshot(t *testing.T) 
 		t.Errorf("stale update = status %d body %s", stale.Code, stale.Body.String())
 	}
 
+	var organizerID string
+	if err := pool.QueryRow(ctx, `SELECT id FROM organizers WHERE singleton`).Scan(&organizerID); err != nil {
+		t.Fatalf("read organizer: %v", err)
+	}
+	emptyScheduleID := "018f0000-0000-7000-8000-000000000302"
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO schedules (id, organizer_id, name, name_key)
+		VALUES ($1, $2, 'Без доступности', 'без доступности')
+	`, emptyScheduleID, organizerID); err != nil {
+		t.Fatalf("insert empty schedule: %v", err)
+	}
+	reenabled := httptest.NewRecorder()
+	reenableRequest := httptest.NewRequest(http.MethodPut, "/api/v1/admin/call-types/"+id, bytes.NewBufferString(`{
+		"name":"Архитектурный разбор",
+		"description":null,
+		"duration_minutes":45,
+		"status":"active",
+		"schedule_id":"`+emptyScheduleID+`"
+	}`))
+	reenableRequest.Header.Set("Content-Type", "application/json")
+	reenableRequest.Header.Set("If-Match", `"2"`)
+	handler.ServeHTTP(reenabled, reenableRequest)
+	if reenabled.Code != http.StatusOK ||
+		!bytes.Contains(reenabled.Body.Bytes(), []byte(`"slug":"zvonok-na-30-minut"`)) ||
+		!bytes.Contains(reenabled.Body.Bytes(), []byte(`"version":"3"`)) {
+		t.Fatalf("re-enable = status %d body %s", reenabled.Code, reenabled.Body.String())
+	}
+	availability := httptest.NewRecorder()
+	handler.ServeHTTP(availability, httptest.NewRequest(http.MethodGet, "/api/v1/public/call-types/zvonok-na-30-minut/availability", nil))
+	if availability.Code != http.StatusOK {
+		t.Fatalf("availability status = %d, want 200; body=%s", availability.Code, availability.Body.String())
+	}
+	var availabilityBody generated.AvailabilityResponseBody
+	if err := json.Unmarshal(availability.Body.Bytes(), &availabilityBody); err != nil {
+		t.Fatalf("decode availability: %v", err)
+	}
+	if availabilityBody.CallType.Slug != "zvonok-na-30-minut" || availabilityBody.CallType.CallTypeVersion != "3" {
+		t.Errorf("re-enabled public snapshot = %+v", availabilityBody.CallType)
+	}
+	for _, day := range availabilityBody.Days {
+		if len(day.Slots) != 0 {
+			t.Errorf("reassigned empty schedule returned slots on %s: %+v", day.Date, day.Slots)
+		}
+	}
+	publicList = httptest.NewRecorder()
+	handler.ServeHTTP(publicList, httptest.NewRequest(http.MethodGet, "/api/v1/public/call-types", nil))
+	if !bytes.Contains(publicList.Body.Bytes(), []byte(`"slug":"zvonok-na-30-minut"`)) {
+		t.Errorf("re-enabled type missing from public catalog: %s", publicList.Body.String())
+	}
+
 	deleted := httptest.NewRecorder()
 	deleteRequest := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/call-types/"+id, nil)
-	deleteRequest.Header.Set("If-Match", `"2"`)
+	deleteRequest.Header.Set("If-Match", `"3"`)
 	handler.ServeHTTP(deleted, deleteRequest)
 	if deleted.Code != http.StatusConflict || !bytes.Contains(deleted.Body.Bytes(), []byte(`"code":"call_type_has_calls"`)) {
 		t.Errorf("delete with history = status %d body %s", deleted.Code, deleted.Body.String())
@@ -152,6 +216,57 @@ func TestAdminCallTypeUpdateIsConditionalAndPreservesCallSnapshot(t *testing.T) 
 	}
 	if snapshotName != "Звонок на 30 минут" || snapshotDuration != 30 {
 		t.Errorf("call snapshot = %q %d, want original name and duration", snapshotName, snapshotDuration)
+	}
+}
+
+func TestAdminCallTypeCreateReportsScheduleDeletedConcurrently(t *testing.T) {
+	pool := catalogTestPool(t)
+	ctx := context.Background()
+	if err := storage.Migrate(ctx, pool); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	if err := storage.Seed(ctx, pool); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	var organizerID string
+	if err := pool.QueryRow(ctx, `SELECT id FROM organizers WHERE singleton`).Scan(&organizerID); err != nil {
+		t.Fatalf("read organizer: %v", err)
+	}
+	scheduleID := "018f0000-0000-7000-8000-000000000401"
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO schedules (id, organizer_id, name, name_key)
+		VALUES ($1, $2, 'Удаляемое', 'удаляемое')
+	`, scheduleID, organizerID); err != nil {
+		t.Fatalf("insert schedule: %v", err)
+	}
+	deleting, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin schedule delete: %v", err)
+	}
+	defer func() { _ = deleting.Rollback(ctx) }()
+	if _, err := deleting.Exec(ctx, `DELETE FROM schedules WHERE id = $1`, scheduleID); err != nil {
+		t.Fatalf("delete schedule: %v", err)
+	}
+
+	handler := newIntegrationHandler(pool, NewPublicCallTypesService(pool), NewPublicCallsService(pool))
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/call-types", bytes.NewBufferString(`{
+		"name":"Параллельное создание","description":null,"duration_minutes":30,
+		"schedule_id":"`+scheduleID+`"
+	}`))
+	request.Header.Set("Content-Type", "application/json")
+	done := make(chan struct{})
+	go func() {
+		handler.ServeHTTP(response, request)
+		close(done)
+	}()
+	if err := deleting.Commit(ctx); err != nil {
+		t.Fatalf("commit schedule delete: %v", err)
+	}
+	<-done
+	if response.Code != http.StatusConflict ||
+		!bytes.Contains(response.Body.Bytes(), []byte(`"code":"schedule_unavailable"`)) {
+		t.Errorf("concurrent schedule delete = status %d body %s", response.Code, response.Body.String())
 	}
 }
 
