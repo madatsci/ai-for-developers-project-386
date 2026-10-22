@@ -227,6 +227,14 @@ func TestAdminScheduleDeletionRechecksRestrictionsWithDocumentedPriority(t *test
 	if got := len(listSchedules(t, handler)); got != 1 {
 		t.Errorf("remaining schedules = %d, want 1", got)
 	}
+
+	if _, err := pool.Exec(ctx, `DELETE FROM call_types`); err != nil {
+		t.Fatalf("remove schedule assignments: %v", err)
+	}
+	last := deleteSchedule(handler, seeded.Id, `"1"`)
+	if last.Code != http.StatusConflict || !bytes.Contains(last.Body.Bytes(), []byte(`"code":"last_schedule"`)) {
+		t.Errorf("last schedule deletion = %d %s, want last_schedule", last.Code, last.Body.String())
+	}
 }
 
 func TestAdminSchedulesValidateContractAndNameUniqueness(t *testing.T) {
@@ -266,6 +274,18 @@ func TestAdminSchedulesValidateContractAndNameUniqueness(t *testing.T) {
 				t.Errorf("response = %d %s, want %d %s", response.Code, response.Body.String(), example.status, example.code)
 			}
 		})
+	}
+
+	validUpdate := []byte(`{"name":"Основное","days":` + validDays + `}`)
+	for _, response := range []*httptest.ResponseRecorder{
+		putSchedule(handler, "not-a-uuid", `"1"`, validUpdate),
+		deleteSchedule(handler, "not-a-uuid", `"1"`),
+	} {
+		if response.Code != http.StatusUnprocessableEntity ||
+			!bytes.Contains(response.Body.Bytes(), []byte(`"code":"validation_error"`)) ||
+			!bytes.Contains(response.Body.Bytes(), []byte(`"path":"path.id"`)) {
+			t.Errorf("malformed schedule id response = %d %s, want path.id validation error", response.Code, response.Body.String())
+		}
 	}
 }
 

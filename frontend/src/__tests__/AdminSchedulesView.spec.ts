@@ -166,6 +166,25 @@ describe('AdminSchedulesView', () => {
     expect(deleteAdminSchedule).not.toHaveBeenCalled()
   })
 
+  it('explains that the last schedule cannot be deleted', async () => {
+    listAdminSchedules.mockResolvedValue({
+      data: {
+        items: [
+          {
+            ...structuredClone(mainSchedule),
+            assigned_call_types: [],
+            delete_blocked_reason: 'last_schedule',
+          },
+        ],
+      },
+    })
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Нельзя удалить последнее расписание')
+    expect(wrapper.get('[data-delete-schedule]').attributes('disabled')).toBeDefined()
+  })
+
   it('deletes an allowed schedule with its current version and selects the remaining item', async () => {
     const removable = {
       ...structuredClone(mainSchedule),

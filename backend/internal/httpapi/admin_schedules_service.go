@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -22,6 +23,8 @@ import (
 type adminSchedulesService struct {
 	pool *pgxpool.Pool
 }
+
+var resourceIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 
 func NewAdminSchedulesService(pool *pgxpool.Pool) generated.AdminSchedulesAPIServicer {
 	return adminSchedulesService{pool: pool}
@@ -82,11 +85,10 @@ func (s adminSchedulesService) CreateAdminSchedule(
 	ctx context.Context,
 	request generated.CreateScheduleRequest,
 ) (generated.ImplResponse, error) {
-	name, nameKey, fieldErrors := validateScheduleRequest(request.Name, request.Days)
+	name, nameKey, intervals, fieldErrors := validateScheduleRequest(request.Name, request.Days)
 	if len(fieldErrors) > 0 {
 		return validationResponse(fieldErrors), nil
 	}
-	intervals, _ := validateWeeklyDays(request.Days)
 
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -133,15 +135,19 @@ func (s adminSchedulesService) UpdateAdminSchedule(
 	ifMatch string,
 	request generated.UpdateScheduleRequest,
 ) (generated.ImplResponse, error) {
+	if !resourceIDPattern.MatchString(id) {
+		return validationResponse([]generated.FieldError{
+			fieldError("path.id", "invalid", "Должен быть UUIDv7"),
+		}), nil
+	}
 	expectedVersion, response, ok := schedulePrecondition(ifMatch)
 	if !ok {
 		return response, nil
 	}
-	name, nameKey, fieldErrors := validateScheduleRequest(request.Name, request.Days)
+	name, nameKey, intervals, fieldErrors := validateScheduleRequest(request.Name, request.Days)
 	if len(fieldErrors) > 0 {
 		return validationResponse(fieldErrors), nil
 	}
-	intervals, _ := validateWeeklyDays(request.Days)
 
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -195,6 +201,11 @@ func (s adminSchedulesService) DeleteAdminSchedule(
 	id string,
 	ifMatch string,
 ) (generated.ImplResponse, error) {
+	if !resourceIDPattern.MatchString(id) {
+		return validationResponse([]generated.FieldError{
+			fieldError("path.id", "invalid", "Должен быть UUIDv7"),
+		}), nil
+	}
 	expectedVersion, response, ok := schedulePrecondition(ifMatch)
 	if !ok {
 		return response, nil
@@ -267,15 +278,18 @@ func schedulePrecondition(ifMatch string) (int64, generated.ImplResponse, bool) 
 	return expectedVersion, generated.ImplResponse{}, true
 }
 
-func validateScheduleRequest(name string, days []generated.WeeklyDay) (string, string, []generated.FieldError) {
+func validateScheduleRequest(
+	name string,
+	days []generated.WeeklyDay,
+) (string, string, map[int][]minuteInterval, []generated.FieldError) {
 	normalizedName := norm.NFC.String(strings.TrimSpace(name))
 	fieldErrors := make([]generated.FieldError, 0)
 	if utf8.RuneCountInString(normalizedName) < 1 || utf8.RuneCountInString(normalizedName) > 80 {
 		fieldErrors = append(fieldErrors, fieldError("body.name", "invalid_length", "Название должно содержать от 1 до 80 символов"))
 	}
-	_, intervalErrors := validateWeeklyDays(days)
+	intervals, intervalErrors := validateWeeklyDays(days)
 	fieldErrors = append(fieldErrors, intervalErrors...)
-	return normalizedName, norm.NFC.String(cases.Fold().String(normalizedName)), fieldErrors
+	return normalizedName, norm.NFC.String(cases.Fold().String(normalizedName)), intervals, fieldErrors
 }
 
 func replaceScheduleIntervals(ctx context.Context, tx pgx.Tx, scheduleID string, intervals map[int][]minuteInterval) error {
