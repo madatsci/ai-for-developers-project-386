@@ -1,10 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { listPublicCallTypes } = vi.hoisted(() => ({
-  listPublicCallTypes: vi.fn(),
-}))
+const { getPublicCallType, getPublicCallTypeAvailability, listPublicCallTypes } = vi.hoisted(
+  () => ({
+    getPublicCallType: vi.fn(),
+    getPublicCallTypeAvailability: vi.fn(),
+    listPublicCallTypes: vi.fn(),
+  }),
+)
 
-vi.mock('@/api/generated', () => ({ listPublicCallTypes }))
+vi.mock('@/api/generated', () => ({
+  getPublicCallType,
+  getPublicCallTypeAvailability,
+  listPublicCallTypes,
+}))
 
 import { flushPromises, mount } from '@vue/test-utils'
 import App from '../App.vue'
@@ -13,6 +21,8 @@ import router from '../router'
 describe('App', () => {
   beforeEach(() => {
     window.sessionStorage.clear()
+    getPublicCallType.mockReset()
+    getPublicCallTypeAvailability.mockReset()
     listPublicCallTypes.mockReset()
     listPublicCallTypes.mockResolvedValue({
       data: {
@@ -36,6 +46,56 @@ describe('App', () => {
             duration_minutes: 60,
           },
         ],
+      },
+    })
+    getPublicCallType.mockResolvedValue({
+      data: {
+        slug: 'zvonok-na-15-minut',
+        name: 'Звонок на 15 минут',
+        description: null,
+        duration_minutes: 15,
+        status: 'active',
+        call_type_version: '1',
+      },
+    })
+    getPublicCallTypeAvailability.mockResolvedValue({
+      data: {
+        generated_at: '2026-10-21T10:02:34+03:00',
+        timezone: 'Europe/Moscow',
+        call_type: {
+          slug: 'zvonok-na-15-minut',
+          name: 'Звонок на 15 минут',
+          description: null,
+          duration_minutes: 15,
+          call_type_version: '1',
+        },
+        days: [
+          '2026-10-21',
+          '2026-10-22',
+          '2026-10-23',
+          '2026-10-24',
+          '2026-10-25',
+          '2026-10-26',
+          '2026-10-27',
+          '2026-10-28',
+          '2026-10-29',
+          '2026-10-30',
+          '2026-10-31',
+          '2026-11-01',
+          '2026-11-02',
+          '2026-11-03',
+        ].map((date, index) => ({
+          date,
+          slots:
+            index === 0
+              ? [
+                  {
+                    starts_at: '2026-10-21T11:30:00+03:00',
+                    ends_at: '2026-10-21T11:45:00+03:00',
+                  },
+                ]
+              : [],
+        })),
       },
     })
   })
@@ -79,95 +139,34 @@ describe('App', () => {
     wrapper.unmount()
   })
 
-  it('keeps the selected planner flow interactive and restores its confirmation', async () => {
-    await router.push('/booking/zvonok-na-15-minut?variant=B')
-    await router.isReady()
-
-    const wrapper = mount(App, { global: { plugins: [router] } })
-
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text() === '09:00')!
-      .trigger('click')
-
-    await wrapper.get('input[type="text"]').setValue('Тестовый посетитель')
-    await wrapper.get('input[type="email"]').setValue('test@EXAMPLE.COM')
-    await wrapper.get('textarea').setValue('Нужно обсудить архитектуру.\nПодготовлю схему заранее.')
-    await wrapper.get('form').trigger('submit')
-
-    expect(wrapper.text()).toContain('Звонок забронирован')
-    expect(wrapper.text()).toContain('test@example.com')
-    expect(wrapper.text()).toContain('Нужно обсудить архитектуру.')
-    wrapper.unmount()
-
-    const refreshedWrapper = mount(App, { global: { plugins: [router] } })
-    await flushPromises()
-
-    expect(refreshedWrapper.text()).toContain('Звонок забронирован')
-    expect(refreshedWrapper.text()).toContain('Нужно обсудить архитектуру.')
-    refreshedWrapper.unmount()
-  })
-
-  it('preserves contact details while the visitor changes the call type', async () => {
-    await router.push('/booking/zvonok-na-15-minut?variant=B')
-    await router.isReady()
-
-    const wrapper = mount(App, { global: { plugins: [router] } })
-
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text() === '09:00')!
-      .trigger('click')
-    await wrapper.get('input[type="text"]').setValue('Ирина')
-    await wrapper.get('input[type="email"]').setValue('irina@example.com')
-    await wrapper.get('textarea').setValue('Хочу обсудить интеграцию')
-
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('Все типы'))!
-      .trigger('click')
-    await flushPromises()
-    await wrapper.get('a[href="/booking/zvonok-na-30-minut"]').trigger('click')
-    await flushPromises()
-
-    expect((wrapper.get('input[type="text"]').element as HTMLInputElement).value).toBe('Ирина')
-    expect((wrapper.get('input[type="email"]').element as HTMLInputElement).value).toBe(
-      'irina@example.com',
+  it('reloads the planner when an unavailable type links to an active alternative', async () => {
+    getPublicCallType.mockImplementation(({ path }: { path: { slug: string } }) =>
+      Promise.resolve({
+        data: {
+          slug: path.slug,
+          name: path.slug === 'otklyuchennyy' ? 'Отключённый тип' : 'Звонок на 15 минут',
+          description: null,
+          duration_minutes: 15,
+          status: path.slug === 'otklyuchennyy' ? 'disabled' : 'active',
+          call_type_version: '1',
+        },
+      }),
     )
-    expect((wrapper.get('textarea').element as HTMLTextAreaElement).value).toBe(
-      'Хочу обсудить интеграцию',
-    )
-    expect(wrapper.findAll('button').some((button) => button.text() === '09:00')).toBe(true)
-    expect(wrapper.findAll('button[aria-pressed="true"]')).toHaveLength(0)
-    wrapper.unmount()
-  })
-
-  it.each([
-    ['/booking/razbor-proekta?variant=B', 'Тип звонка временно недоступен', 'Разбор проекта'],
-    ['/booking/neizvestnyy-tip?variant=B', 'Тип звонка не найден', 'Эта ссылка больше не работает'],
-  ])('renders the expected unavailable state for %s', async (path, status, heading) => {
-    await router.push(path)
+    await router.push('/booking/otklyuchennyy')
     await router.isReady()
 
     const wrapper = mount(App, { global: { plugins: [router] } })
+    await flushPromises()
 
-    expect(wrapper.text()).toContain(status)
-    expect(wrapper.get('h1').text()).toBe(heading)
-    expect(wrapper.text()).toContain('К активным типам звонков')
-    wrapper.unmount()
-  })
+    expect(wrapper.text()).toContain('Тип звонка временно недоступен')
+    await wrapper.get('a[href="/booking/zvonok-na-15-minut"]').trigger('click')
+    await flushPromises()
 
-  it.each([
-    ['B', 'Свободное время'],
-    ['C', 'Когда вам удобно?'],
-  ])('renders variant %s on a direct public booking URL', async (variant, heading) => {
-    await router.push(`/booking/zvonok-na-30-minut?variant=${variant}`)
-    await router.isReady()
-
-    const wrapper = mount(App, { global: { plugins: [router] } })
-
-    expect(wrapper.text()).toContain(heading)
-    expect(wrapper.text()).toContain('Звонок на 30 минут')
+    expect(router.currentRoute.value.path).toBe('/booking/zvonok-na-15-minut')
+    expect(getPublicCallTypeAvailability).toHaveBeenCalledWith({
+      path: { slug: 'zvonok-na-15-minut' },
+    })
+    expect(wrapper.findAll('[data-availability-day]')).toHaveLength(14)
     wrapper.unmount()
   })
 })

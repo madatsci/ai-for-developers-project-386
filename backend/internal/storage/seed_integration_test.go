@@ -152,6 +152,70 @@ func TestDatabaseProtectsWeeklyIntervalInvariantsAndRelations(t *testing.T) {
 	}
 }
 
+func TestDatabaseStoresCallTypeSnapshotsAndRejectsOverlappingCalls(t *testing.T) {
+	ctx := context.Background()
+	pool := testPool(t)
+	if err := storage.Migrate(ctx, pool); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	if err := storage.Seed(ctx, pool); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	var thirtyMinuteTypeID, fifteenMinuteTypeID, sixtyMinuteTypeID string
+	if err := pool.QueryRow(ctx, `SELECT id FROM call_types WHERE duration_minutes = 30`).Scan(&thirtyMinuteTypeID); err != nil {
+		t.Fatalf("read 30-minute type: %v", err)
+	}
+	if err := pool.QueryRow(ctx, `SELECT id FROM call_types WHERE duration_minutes = 15`).Scan(&fifteenMinuteTypeID); err != nil {
+		t.Fatalf("read 15-minute type: %v", err)
+	}
+	if err := pool.QueryRow(ctx, `SELECT id FROM call_types WHERE duration_minutes = 60`).Scan(&sixtyMinuteTypeID); err != nil {
+		t.Fatalf("read 60-minute type: %v", err)
+	}
+
+	insertCall := `
+		INSERT INTO calls (
+			id, call_type_id, call_type_name, duration_minutes, starts_at,
+			visitor_name, visitor_email, visitor_notes
+		) VALUES ($1, $2, $3, $4, $5, 'Анна', 'anna@example.com', NULL)
+	`
+	if _, err := pool.Exec(ctx, insertCall,
+		"018f0000-0000-7000-8000-000000000101", thirtyMinuteTypeID,
+		"Снимок названия", 30, "2026-10-21T10:00:00+03:00",
+	); err != nil {
+		t.Fatalf("insert first call: %v", err)
+	}
+
+	if _, err := pool.Exec(ctx, `UPDATE call_types SET name = 'Новое название', duration_minutes = 45 WHERE id = $1`, thirtyMinuteTypeID); err != nil {
+		t.Fatalf("update call type: %v", err)
+	}
+	var snapshotName string
+	var snapshotDuration int
+	var endsAt string
+	if err := pool.QueryRow(ctx, `
+		SELECT call_type_name, duration_minutes, to_char(ends_at AT TIME ZONE 'Europe/Moscow', 'YYYY-MM-DD HH24:MI')
+		FROM calls
+	`).Scan(&snapshotName, &snapshotDuration, &endsAt); err != nil {
+		t.Fatalf("read call snapshot: %v", err)
+	}
+	if snapshotName != "Снимок названия" || snapshotDuration != 30 || endsAt != "2026-10-21 10:30" {
+		t.Fatalf("unexpected snapshot: name=%q duration=%d ends_at=%q", snapshotName, snapshotDuration, endsAt)
+	}
+
+	if _, err := pool.Exec(ctx, insertCall,
+		"018f0000-0000-7000-8000-000000000102", fifteenMinuteTypeID,
+		"Касающийся звонок", 15, "2026-10-21T10:30:00+03:00",
+	); err != nil {
+		t.Fatalf("touching call was rejected: %v", err)
+	}
+	if _, err := pool.Exec(ctx, insertCall,
+		"018f0000-0000-7000-8000-000000000103", sixtyMinuteTypeID,
+		"Пересекающийся звонок", 60, "2026-10-21T10:15:00+03:00",
+	); err == nil {
+		t.Fatal("overlapping call of another type was accepted")
+	}
+}
+
 func testPool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 	databaseURL := os.Getenv("DATABASE_URL")
