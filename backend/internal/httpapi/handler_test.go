@@ -42,6 +42,9 @@ func TestHealth(t *testing.T) {
 			if got := response.Header().Get("Content-Type"); got != "application/json" {
 				t.Errorf("Content-Type = %q, want application/json", got)
 			}
+			if got := response.Header().Get("Cache-Control"); got != "no-store" {
+				t.Errorf("Cache-Control = %q, want no-store", got)
+			}
 		})
 	}
 }
@@ -58,6 +61,8 @@ func TestRoutes(t *testing.T) {
 	}{
 		{http.MethodPost, "/api/health", http.StatusMethodNotAllowed},
 		{http.MethodGet, "/api/missing", http.StatusNotFound},
+		{http.MethodGet, "/api/v1/public/call-types", http.StatusNotFound},
+		{http.MethodPost, "/api/v1/public/calls", http.StatusNotFound},
 	} {
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, httptest.NewRequest(tt.method, tt.path, nil))

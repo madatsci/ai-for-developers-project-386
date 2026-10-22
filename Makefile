@@ -10,7 +10,7 @@ export FRONTEND_PORT ?= 5175
 GOLANGCI_VERSION := v2.15.0
 GOLANGCI := $(CURDIR)/.bin/$(GOLANGCI_VERSION)/golangci-lint
 
-.PHONY: help setup install tools db-up db-down dev dev-backend dev-frontend test test-backend test-frontend lint lint-backend lint-frontend lint-typespec lint-client format build build-backend build-frontend build-typespec generate-client smoke check
+.PHONY: help setup install tools db-up db-down dev dev-backend dev-frontend test test-backend test-frontend lint lint-backend lint-frontend lint-typespec lint-client lint-server format build build-backend build-frontend build-typespec generate-client generate-server smoke check
 
 help:
 	@echo "make setup        Install dependencies and the pinned Go linter"
@@ -20,6 +20,8 @@ help:
 	@echo "make format       Format Go, frontend and TypeSpec source files"
 	@echo "make build        Build backend, frontend, OpenAPI and client SDK"
 	@echo "make generate-client  Generate the frontend SDK from TypeSpec"
+	@echo "make generate-server  Generate the Go server package from TypeSpec"
+	@echo "make lint-server      Check the generated Go server package for drift"
 	@echo "make smoke        Start PostgreSQL and smoke-test production builds"
 	@echo "make check        Run lint, tests, builds and the smoke test"
 	@echo "make db-down      Stop PostgreSQL, preserving its data volume"
@@ -61,9 +63,10 @@ test-backend:
 test-frontend: lint-client
 	npm --prefix frontend test
 
-lint: lint-backend lint-frontend lint-typespec lint-client
+lint: lint-backend lint-frontend lint-typespec lint-client lint-server
 	node --check scripts/smoke.mjs
 	node --check scripts/check-client-sdk.mjs
+	node --check scripts/generate-server.mjs
 
 lint-backend: tools
 	cd backend && $(GOLANGCI) run ./...
@@ -78,6 +81,9 @@ lint-typespec:
 
 lint-client: build-typespec
 	node scripts/check-client-sdk.mjs
+
+lint-server: build-typespec
+	node scripts/generate-server.mjs --check
 
 format:
 	cd backend && gofmt -w .
@@ -98,6 +104,9 @@ build-typespec:
 
 generate-client: build-typespec
 	npm --prefix frontend run generate:api
+
+generate-server: build-typespec
+	node scripts/generate-server.mjs --write
 
 smoke: db-up build
 	node scripts/smoke.mjs
