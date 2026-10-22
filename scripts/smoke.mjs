@@ -83,6 +83,67 @@ try {
     ],
   )
 
+  const schedulesResponse = await fetch(`${backendURL}/api/v1/admin/schedules`, {
+    signal: AbortSignal.timeout(3000),
+  })
+  assert.equal(schedulesResponse.status, 200)
+  const schedule = (await schedulesResponse.json()).items[0]
+  assert.ok(schedule?.id, 'Seeded schedule is missing')
+
+  const smokeName = `Smoke ${Date.now()}`
+  const createdResponse = await fetch(`${backendURL}/api/v1/admin/call-types`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: smokeName,
+      description: 'Production smoke test',
+      duration_minutes: 45,
+      schedule_id: schedule.id,
+    }),
+    signal: AbortSignal.timeout(3000),
+  })
+  assert.equal(createdResponse.status, 201)
+  assert.equal(createdResponse.headers.get('etag'), '"1"')
+  const createdType = await createdResponse.json()
+
+  const publicCreatedResponse = await fetch(
+    `${backendURL}/api/v1/public/call-types/${createdType.slug}`,
+    { signal: AbortSignal.timeout(3000) },
+  )
+  assert.equal(publicCreatedResponse.status, 200)
+  assert.equal((await publicCreatedResponse.json()).name, smokeName)
+
+  const disabledResponse = await fetch(`${backendURL}/api/v1/admin/call-types/${createdType.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'If-Match': '"1"' },
+    body: JSON.stringify({
+      name: smokeName,
+      description: null,
+      duration_minutes: 45,
+      status: 'disabled',
+      schedule_id: schedule.id,
+    }),
+    signal: AbortSignal.timeout(3000),
+  })
+  assert.equal(disabledResponse.status, 200)
+  assert.equal(disabledResponse.headers.get('etag'), '"2"')
+
+  const publicAfterDisable = await fetch(`${backendURL}/api/v1/public/call-types`, {
+    signal: AbortSignal.timeout(3000),
+  })
+  assert.equal(publicAfterDisable.status, 200)
+  assert.ok(
+    !(await publicAfterDisable.json()).items.some(({ slug }) => slug === createdType.slug),
+    'Disabled call type is still present in the public catalog',
+  )
+
+  const deletedResponse = await fetch(`${backendURL}/api/v1/admin/call-types/${createdType.id}`, {
+    method: 'DELETE',
+    headers: { 'If-Match': '"2"' },
+    signal: AbortSignal.timeout(3000),
+  })
+  assert.equal(deletedResponse.status, 204)
+
   const frontend = start(
     process.execPath,
     ['node_modules/vite/bin/vite.js', 'preview', '--port', frontendPort, '--strictPort'],

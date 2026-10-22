@@ -93,6 +93,7 @@ func newTestHandler(ping func(context.Context) error) http.Handler {
 	return NewHandler(ping, HandlerServices{
 		PublicCallTypes:   publicCallTypesStub{},
 		PublicCalls:       publicCallsStub{},
+		AdminCallTypes:    adminCallTypesStub{},
 		AdminSchedules:    adminSchedulesStub{},
 		AdminWorkingHours: adminWorkingHoursStub{},
 	})
@@ -107,6 +108,24 @@ func (publicCallsStub) CreateCall(context.Context, string, generated.CreateCallR
 type adminWorkingHoursStub struct{}
 
 type adminSchedulesStub struct{}
+
+type adminCallTypesStub struct{}
+
+func (adminCallTypesStub) ListAdminCallTypes(context.Context) (generated.ImplResponse, error) {
+	return domainResponse(http.StatusOK, generated.AdminCallTypeList{Items: []generated.AdminCallType{}}), nil
+}
+
+func (adminCallTypesStub) CreateAdminCallType(context.Context, generated.CreateCallTypeRequest) (generated.ImplResponse, error) {
+	return generated.Response(http.StatusCreated, nil), nil
+}
+
+func (adminCallTypesStub) UpdateAdminCallType(context.Context, string, string, generated.UpdateCallTypeRequest) (generated.ImplResponse, error) {
+	return generated.Response(http.StatusOK, nil), nil
+}
+
+func (adminCallTypesStub) DeleteAdminCallType(context.Context, string, string) (generated.ImplResponse, error) {
+	return generated.Response(http.StatusNoContent, nil), nil
+}
 
 func (adminSchedulesStub) ListAdminSchedules(context.Context) (generated.ImplResponse, error) {
 	return domainResponse(http.StatusOK, generated.AdminScheduleList{Items: []generated.AdminSchedule{}}), nil

@@ -22,6 +22,7 @@ var requestSlotDateTimePattern = regexp.MustCompile(`^[0-9]{4}-(?:0[1-9]|1[0-2])
 type HandlerServices struct {
 	PublicCallTypes   generated.PublicCallTypesAPIServicer
 	PublicCalls       generated.PublicCallsAPIServicer
+	AdminCallTypes    generated.AdminCallTypesAPIServicer
 	AdminSchedules    generated.AdminSchedulesAPIServicer
 	AdminWorkingHours generated.AdminWorkingHoursAPIServicer
 }
@@ -37,6 +38,10 @@ func NewHandler(ping func(context.Context) error, services HandlerServices) http
 		services.AdminSchedules,
 		generated.WithAdminSchedulesAPIErrorHandler(controllerErrorHandler),
 	)
+	adminCallTypesController := generated.NewAdminCallTypesAPIController(
+		services.AdminCallTypes,
+		generated.WithAdminCallTypesAPIErrorHandler(controllerErrorHandler),
+	)
 	adminWorkingHoursController := generated.NewAdminWorkingHoursAPIController(
 		services.AdminWorkingHours,
 		generated.WithAdminWorkingHoursAPIErrorHandler(controllerErrorHandler),
@@ -50,11 +55,13 @@ func NewHandler(ping func(context.Context) error, services HandlerServices) http
 			publicRoutes["GetPublicCallTypeAvailability"],
 		}},
 		publicCallsController,
+		adminCallTypesController,
 		adminSchedulesController,
 		adminWorkingHoursController,
 	}
 	contracts := map[string]requestContract{
 		"/api/v1/public/calls":        {jsonMethod: http.MethodPost, validateJSON: validateCreateCallJSON},
+		"/api/v1/admin/call-types":    {jsonMethod: http.MethodPost},
 		"/api/v1/admin/schedules":     {jsonMethod: http.MethodPost},
 		"/api/v1/admin/working-hours": {jsonMethod: http.MethodPut},
 	}
@@ -70,6 +77,10 @@ func productRequestGuard(contracts map[string]requestContract, next http.Handler
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		contract, guarded := contracts[r.URL.Path]
 		if !guarded && strings.HasPrefix(r.URL.Path, "/api/v1/admin/schedules/") {
+			contract = requestContract{jsonMethod: http.MethodPut}
+			guarded = true
+		}
+		if !guarded && strings.HasPrefix(r.URL.Path, "/api/v1/admin/call-types/") {
 			contract = requestContract{jsonMethod: http.MethodPut}
 			guarded = true
 		}
@@ -143,6 +154,12 @@ func controllerErrorHandler(w http.ResponseWriter, _ *http.Request, err error, r
 		if parsingError.Param == "DayOfWeek" {
 			writeValidationError(w, []generated.FieldError{
 				fieldError("body.days.day_of_week", "invalid", "День недели должен быть от 1 до 7"),
+			})
+			return
+		}
+		if parsingError.Param == "DurationMinutes" {
+			writeValidationError(w, []generated.FieldError{
+				fieldError("body.duration_minutes", "invalid", "Длительность должна быть от 15 до 240 минут с шагом 5"),
 			})
 			return
 		}

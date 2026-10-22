@@ -199,10 +199,16 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
       <nav class="mt-8 grid gap-1" aria-label="Административные разделы">
         <span class="rounded-lg px-3 py-2.5 text-sm text-slate-400">Звонки</span>
         <RouterLink
+          to="/admin/call-types"
+          class="rounded-lg px-3 py-2.5 text-sm text-slate-300 hover:bg-slate-900"
+        >
+          Типы звонков
+        </RouterLink>
+        <RouterLink
           to="/admin/schedules"
           class="rounded-lg px-3 py-2.5 text-sm text-slate-300 hover:bg-slate-900"
         >
-          Типы и расписания
+          Расписания
         </RouterLink>
         <RouterLink
           to="/admin/working-hours"
