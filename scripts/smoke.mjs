@@ -65,6 +65,24 @@ try {
   const health = await waitFor(`${backendURL}/api/health`, backend)
   assert.deepEqual(await health.json(), { status: 'ok' })
 
+  const callTypes = await fetch(`${backendURL}/api/v1/public/call-types`, {
+    signal: AbortSignal.timeout(3000),
+  })
+  assert.equal(callTypes.status, 200)
+  assert.equal(callTypes.headers.get('cache-control'), 'no-store')
+  assert.deepEqual(
+    (await callTypes.json()).items.map(({ name, description, duration_minutes }) => ({
+      name,
+      description,
+      duration_minutes,
+    })),
+    [
+      { name: 'Звонок на 15 минут', description: null, duration_minutes: 15 },
+      { name: 'Звонок на 30 минут', description: null, duration_minutes: 30 },
+      { name: 'Звонок на 60 минут', description: null, duration_minutes: 60 },
+    ],
+  )
+
   const frontend = start(
     process.execPath,
     ['node_modules/vite/bin/vite.js', 'preview', '--port', frontendPort, '--strictPort'],

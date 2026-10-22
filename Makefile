@@ -10,11 +10,13 @@ export FRONTEND_PORT ?= 5175
 GOLANGCI_VERSION := v2.15.0
 GOLANGCI := $(CURDIR)/.bin/$(GOLANGCI_VERSION)/golangci-lint
 
-.PHONY: help setup install tools db-up db-down dev dev-backend dev-frontend test test-backend test-frontend lint lint-backend lint-frontend lint-typespec lint-client lint-server format build build-backend build-frontend build-typespec generate generate-client generate-server smoke check
+.PHONY: help setup install tools db-up db-down migrate seed dev dev-backend dev-frontend test test-backend test-integration test-frontend lint lint-backend lint-frontend lint-typespec lint-client lint-server format build build-backend build-frontend build-typespec generate generate-client generate-server smoke check
 
 help:
 	@echo "make setup        Install dependencies and the pinned Go linter"
 	@echo "make dev          Start PostgreSQL, backend and frontend"
+	@echo "make migrate      Apply PostgreSQL schema changes"
+	@echo "make seed         Create the initial organizer configuration"
 	@echo "make test         Run backend and frontend tests"
 	@echo "make lint         Check Go, frontend and TypeSpec"
 	@echo "make format       Format Go, frontend and TypeSpec source files"
@@ -47,7 +49,13 @@ db-up:
 db-down:
 	docker compose down
 
-dev: db-up
+migrate:
+	cd backend && go run ./cmd/migrate
+
+seed: migrate
+	cd backend && go run ./cmd/seed
+
+dev: db-up seed
 	$(MAKE) -j2 dev-backend dev-frontend
 
 dev-backend:
@@ -60,6 +68,9 @@ test: test-backend test-frontend
 
 test-backend:
 	cd backend && go test -race ./...
+
+test-integration: db-up
+	cd backend && go test -race -tags=integration ./internal/storage ./internal/httpapi
 
 test-frontend: lint-client
 	npm --prefix frontend test
@@ -111,7 +122,7 @@ generate-client: build-typespec
 generate-server: build-typespec
 	node scripts/generate-server.mjs --write
 
-smoke: db-up build
+smoke: db-up seed build
 	node scripts/smoke.mjs
 
-check: lint test smoke
+check: lint test test-integration smoke
