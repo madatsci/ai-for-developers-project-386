@@ -14,8 +14,8 @@
     "type-check": "vue-tsc --build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --config .prettierrc.json --write . ../scripts/check-client-sdk.mjs ../scripts/smoke.mjs",
-    "format:check": "prettier --config .prettierrc.json --check . ../scripts/check-client-sdk.mjs ../scripts/smoke.mjs"
+    "format": "prettier --config .prettierrc.json --write . ../scripts/check-client-sdk.mjs ../scripts/generate-server.mjs ../scripts/smoke.mjs",
+    "format:check": "prettier --config .prettierrc.json --check . ../scripts/check-client-sdk.mjs ../scripts/generate-server.mjs ../scripts/smoke.mjs"
   },
   "dependencies": {
     "@lucide/vue": "^1.58.0",

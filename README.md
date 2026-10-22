@@ -10,9 +10,10 @@
 
 ## Стек
 
-Go 1.26, `net/http`, PostgreSQL 18 и pgx; Vue 3, TypeScript, Vite, Vue Router,
-shadcn-vue и Tailwind CSS; TypeSpec как Design First источник HTTP-контракта и
-Hey API для генерации клиентского SDK.
+Go 1.26, `net/http`, `chi`, PostgreSQL 18 и pgx; Vue 3, TypeScript, Vite, Vue
+Router, shadcn-vue и Tailwind CSS; TypeSpec как Design First источник
+HTTP-контракта, Hey API для клиентского SDK и OpenAPI Generator для серверных
+Go-артефактов.
 
 Для разработки нужны Go 1.26+, **Node.js 26** с npm, Docker с Compose v2,
 GNU Make и curl. Версия Node закреплена в `.node-version` и проверяется при
@@ -68,20 +69,53 @@ make dev-frontend  # второй терминал
 | Команда | Что проверяет |
 | --- | --- |
 | `make test` | Go-тесты с race detector и Vitest без watch-режима |
-| `make lint` | golangci-lint, gofmt, ESLint, Prettier, TypeSpec и синтаксис smoke-скрипта |
+| `make lint` | Линтеры, форматирование, TypeSpec и отсутствие дрейфа generated-кода |
 | `make format` | Форматирует Go, frontend и TypeSpec-код |
 | `make build` | Go-бинарник, frontend-сборка, OpenAPI и клиентский SDK |
+| `make generate-server` | Обновляет сгенерированный Go-пакет из TypeSpec |
+| `make lint-server` | Проверяет сгенерированный Go-пакет на дрейф |
 | `make smoke` | Запускает БД, собирает и проверяет работающее приложение |
 | `make check` | Все проверки: lint, test, build и smoke |
 
 По отдельности доступны `make test-backend`, `make test-frontend`,
 `make lint-backend`, `make lint-frontend`, `make lint-typespec`,
-`make lint-client` и `make build-typespec`. `make generate-client` сначала
-генерирует OpenAPI из TypeSpec, затем обновляет Fetch SDK в
-`frontend/src/api/generated/`. Это сгенерированный код: его нужно обновлять
-командой, а не редактировать вручную. CI проверяет, что SDK соответствует
-контракту. Unit-тестам Docker не нужен. Исходный TypeSpec-контракт хранится в
-`api/`, а промежуточный OpenAPI появляется в `api/tsp-output/openapi.yaml`.
+`make lint-client`, `make lint-server` и `make build-typespec`.
+
+### Генерация API-кода
+
+Единственный редактируемый источник HTTP-контракта находится в `api/*.tsp`.
+Серверная цепочка выглядит так:
+
+```text
+TypeSpec -> api/tsp-output/openapi.yaml -> backend/internal/httpapi/generated/*.go
+```
+
+`make generate-server` сначала пересобирает промежуточный OpenAPI, затем запускает
+`go-server` из закреплённого Docker-образа OpenAPI Generator `v7.26.0`, форматирует
+Go-файлы и целиком заменяет generated-каталог. Файлы в
+`backend/internal/httpapi/generated/` коммитятся, но вручную не редактируются.
+`make lint-server` повторяет генерацию во временный каталог и сообщает пути с
+дрейфом. Docker нужен этим двум командам и полной проверке `make lint`; обычные
+Go-сборка и тесты используют закоммиченный пакет и не запускают генератор.
+
+`make generate-client` также сначала генерирует OpenAPI из TypeSpec, затем
+обновляет Fetch SDK в `frontend/src/api/generated/`. CI проверяет соответствие
+контракту обоих generated-пакетов. Промежуточный
+`api/tsp-output/openapi.yaml` не коммитится и не копируется в backend.
+
+Сгенерированный роутер использует `chi` как `http.Handler` внутри существующего
+стандартного `http.Server`. Сейчас в рабочий роутер подключён только реализованный
+health endpoint; остальные controllers и servicer-интерфейсы являются
+заготовками и не публикуют ответы `501`.
+
+Проект намеренно не использует `kin-openapi` и не загружает OpenAPI-схему во
+время работы. Generated controller выполняет разбор и часть проверок, но не
+полную runtime-валидацию OpenAPI. В частности, он не гарантирует обязательность
+`Idempotency-Key` и `If-Match`, `Content-Type`, лимит тела 64 KiB, единственность
+JSON-значения, запрет неизвестных query-параметров, enum, `pattern`, ограничения
+длины и размера массивов и `multipleOf`. При подключении каждого продуктового
+endpoint эти требования нужно реализовать и протестировать в рукописном
+transport/service-адаптере вне generated-каталога.
 
 Дымовой тест запускает собранный Go-бинарник и Vite preview на отдельных портах
 `18080` и `14173`, проверяет HTML, доступность JS/CSS и JSON-ответ API напрямую
@@ -98,6 +132,7 @@ Vite preview используется только для проверки сб�
 api/                      TypeSpec-контракт и генерация OpenAPI
 backend/cmd/api/          запуск HTTP-сервера и подключение БД
 backend/internal/httpapi/ маршруты и тесты HTTP API
+backend/internal/httpapi/generated/  сгенерированные Go-модели и controllers
 frontend/src/            Vue-приложение и тесты
 frontend/src/api/generated/  сгенерированный Fetch SDK
 scripts/smoke.mjs         проверка запуска приложения
@@ -142,6 +177,8 @@ Workflow `CI` на каждый push и pull request устанавливает 
 [shadcn-vue для Vite](https://www.shadcn-vue.com/docs/installation/vite),
 [TypeSpec](https://typespec.io/docs/),
 [Hey API](https://heyapi.dev/docs/openapi/typescript/get-started),
+[OpenAPI Generator](https://openapi-generator.tech/docs/generators/go-server/),
+[chi](https://github.com/go-chi/chi),
 [pgxpool](https://pkg.go.dev/github.com/jackc/pgx/v5/pgxpool),
 [Docker Compose](https://docs.docker.com/compose/gettingstarted/) и
 [golangci-lint](https://golangci-lint.run/docs/welcome/install/).

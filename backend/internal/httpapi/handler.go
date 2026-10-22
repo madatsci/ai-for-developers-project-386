@@ -2,32 +2,30 @@ package httpapi
 
 import (
 	"context"
-	"encoding/json"
-	"log/slog"
 	"net/http"
-	"time"
+	"strings"
+
+	"github.com/madatsci/ai-for-developers-project-386/backend/internal/httpapi/generated"
 )
 
 func NewHandler(ping func(context.Context) error) http.Handler {
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
-		defer cancel()
+	healthController := generated.NewHealthAPIController(healthService{ping: ping})
+	return exactJSONContentType(generated.NewRouter(healthController))
+}
 
-		code, status := http.StatusOK, "ok"
-		if err := ping(ctx); err != nil {
-			slog.ErrorContext(ctx, "database health check failed", "error", err)
-			code, status = http.StatusServiceUnavailable, "unavailable"
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Cache-Control", "no-store")
-		w.WriteHeader(code)
-		if err := json.NewEncoder(w).Encode(struct {
-			Status string `json:"status"`
-		}{Status: status}); err != nil {
-			slog.ErrorContext(ctx, "write health response", "error", err)
-		}
+func exactJSONContentType(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(&exactJSONContentTypeWriter{ResponseWriter: w}, r)
 	})
-	return mux
+}
+
+type exactJSONContentTypeWriter struct {
+	http.ResponseWriter
+}
+
+func (w *exactJSONContentTypeWriter) WriteHeader(code int) {
+	if strings.HasPrefix(w.Header().Get("Content-Type"), "application/json") {
+		w.Header().Set("Content-Type", "application/json")
+	}
+	w.ResponseWriter.WriteHeader(code)
 }

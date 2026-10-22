@@ -1,0 +1,14 @@
+generatorName: go-server
+globalProperties:
+  apiDocs: false
+  apiTests: false
+  modelDocs: false
+  modelTests: false
+additionalProperties:
+  packageName: generated
+  sourceFolder: .
+  router: chi
+  outputAsLibrary: true
+  onlyInterfaces: true
+  addResponseHeaders: true
+  hideGenerationTimestamp: true
