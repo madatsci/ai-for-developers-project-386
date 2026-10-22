@@ -161,6 +161,7 @@ async function selectSlot(slot: AvailabilitySlot) {
   selectedSlot.value = slot
   submitError.value = ''
   fieldErrors.value = {}
+  if (window.innerWidth >= 640) return
   await nextTick()
   formHeading.value?.focus()
 }
@@ -204,7 +205,7 @@ function validateVisitorData(data: ReturnType<typeof normalizedVisitorData>) {
 }
 
 async function submitBooking() {
-  if (!selectedSlot.value || !availability.value) return
+  if (submitting.value || !selectedSlot.value || !availability.value) return
   const visitor = normalizedVisitorData()
   if (!validateVisitorData(visitor)) return
   const body = {
@@ -230,9 +231,13 @@ async function submitBooking() {
       confirmation.value = result.data
       sessionStorage.setItem('booking-confirmation', JSON.stringify(result.data))
       draft.value = emptyDraft()
+      await nextTick()
       sessionStorage.removeItem('booking-draft')
       rememberIdempotency(null)
       return
+    }
+    if (result.response && result.response.status >= 400 && result.response.status < 500) {
+      rememberIdempotency(null)
     }
     const code = errorCode(result)
     if (code === 'slot_unavailable' || code === 'call_type_changed') {
@@ -477,6 +482,14 @@ watch(typeSlug, loadPage, { immediate: true })
               Сменить тип звонка
             </RouterLink>
           </div>
+
+          <p
+            v-if="submitError && !selectedSlot"
+            class="mt-6 border-y border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700"
+            role="alert"
+          >
+            {{ submitError }}
+          </p>
 
           <div class="mt-6 grid gap-4 sm:grid-cols-2">
             <article

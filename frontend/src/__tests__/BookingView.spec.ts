@@ -166,6 +166,7 @@ describe('BookingView', () => {
     expect(JSON.parse(sessionStorage.getItem('booking-confirmation') ?? 'null')).toEqual(
       expect.objectContaining({ visitor_name: 'Йрина' }),
     )
+    expect(sessionStorage.getItem('booking-draft')).toBeNull()
   })
 
   it('reuses the idempotency key for a network retry and replaces it after input changes', async () => {
@@ -197,6 +198,79 @@ describe('BookingView', () => {
     expect(keyForCall(2)).not.toBe(firstKey)
   })
 
+  it('reuses the idempotency key after a 5xx response', async () => {
+    getPublicCallTypeAvailability.mockResolvedValueOnce({ data: availability() })
+    createCall
+      .mockResolvedValueOnce({
+        error: { code: 'internal_error', message: 'Internal server error' },
+        response: { status: 500 },
+      })
+      .mockRejectedValueOnce(new Error('network unavailable'))
+
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.get('[data-slot]').trigger('click')
+    await wrapper.get('input[name="visitor_name"]').setValue('Анна')
+    await wrapper.get('input[name="visitor_email"]').setValue('anna@example.com')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    const firstKey = createCall.mock.calls[0]?.[0].headers['Idempotency-Key']
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(createCall.mock.calls[1]?.[0].headers['Idempotency-Key']).toBe(firstKey)
+  })
+
+  it('reuses the idempotency key after a timeout', async () => {
+    getPublicCallTypeAvailability.mockResolvedValueOnce({ data: availability() })
+    createCall.mockRejectedValue(new DOMException('The request timed out', 'TimeoutError'))
+
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.get('[data-slot]').trigger('click')
+    await wrapper.get('input[name="visitor_name"]').setValue('Анна')
+    await wrapper.get('input[name="visitor_email"]').setValue('anna@example.com')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    const firstKey = createCall.mock.calls[0]?.[0].headers['Idempotency-Key']
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(createCall.mock.calls[1]?.[0].headers['Idempotency-Key']).toBe(firstKey)
+  })
+
+  it('keys attempts by normalized visitor data and the selected slot', async () => {
+    const currentAvailability = availability()
+    currentAvailability.days[0]?.slots.push({
+      starts_at: '2026-10-21T12:00:00+03:00',
+      ends_at: '2026-10-21T12:30:00+03:00',
+    })
+    getPublicCallTypeAvailability.mockResolvedValueOnce({ data: currentAvailability })
+    createCall.mockRejectedValue(new Error('network unavailable'))
+
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.findAll('[data-slot]')[0]?.trigger('click')
+    await wrapper.get('input[name="visitor_name"]').setValue('  Анна  ')
+    await wrapper.get('input[name="visitor_email"]').setValue(' anna@EXAMPLE.COM ')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    const firstKey = createCall.mock.calls[0]?.[0].headers['Idempotency-Key']
+
+    await wrapper.get('input[name="visitor_name"]').setValue('Анна')
+    await wrapper.get('input[name="visitor_email"]').setValue('anna@example.com')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(createCall.mock.calls[1]?.[0].headers['Idempotency-Key']).toBe(firstKey)
+
+    await wrapper.findAll('[data-slot]')[1]?.trigger('click')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(createCall.mock.calls[2]?.[0].headers['Idempotency-Key']).not.toBe(firstKey)
+  })
+
   it('keeps the idempotency key after reload and reselecting the same slot', async () => {
     getPublicCallTypeAvailability.mockResolvedValue({ data: availability() })
     createCall.mockRejectedValue(new Error('network unavailable'))
@@ -219,6 +293,184 @@ describe('BookingView', () => {
     expect(createCall.mock.calls[1]?.[0].headers['Idempotency-Key']).toBe(firstKey)
   })
 
+  it('restores visitor data after reload and when opening another call type', async () => {
+    getPublicCallTypeAvailability.mockResolvedValue({ data: availability() })
+    const firstView = mountView()
+    await flushPromises()
+    await firstView.get('[data-slot]').trigger('click')
+    await firstView.get('input[name="visitor_name"]').setValue('Анна')
+    await firstView.get('input[name="visitor_email"]').setValue('anna@example.com')
+    await firstView.get('textarea[name="visitor_notes"]').setValue('Вопрос о проекте')
+    firstView.unmount()
+
+    routeState.typeSlug = 'zvonok-na-15-minut'
+    const secondView = mountView()
+    await flushPromises()
+    expect(secondView.find('form').exists()).toBe(false)
+    await secondView.get('[data-slot]').trigger('click')
+
+    expect(secondView.get('input[name="visitor_name"]').element).toHaveProperty('value', 'Анна')
+    expect(secondView.get('input[name="visitor_email"]').element).toHaveProperty(
+      'value',
+      'anna@example.com',
+    )
+    expect(secondView.get('textarea[name="visitor_notes"]').element).toHaveProperty(
+      'value',
+      'Вопрос о проекте',
+    )
+  })
+
+  it('discards the idempotency key after a final 4xx response', async () => {
+    getPublicCallTypeAvailability.mockResolvedValueOnce({ data: availability() })
+    createCall
+      .mockResolvedValueOnce({
+        error: {
+          code: 'validation_error',
+          message: 'Request validation failed',
+          field_errors: [],
+        },
+        response: { status: 422 },
+      })
+      .mockRejectedValueOnce(new Error('network unavailable'))
+
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.get('[data-slot]').trigger('click')
+    await wrapper.get('input[name="visitor_name"]').setValue('Анна')
+    await wrapper.get('input[name="visitor_email"]').setValue('anna@example.com')
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    const firstKey = createCall.mock.calls[0]?.[0].headers['Idempotency-Key']
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(createCall.mock.calls[1]?.[0].headers['Idempotency-Key']).not.toBe(firstKey)
+  })
+
+  it('ignores a repeated submit while the booking request is pending', async () => {
+    getPublicCallTypeAvailability.mockResolvedValueOnce({ data: availability() })
+    let resolveCreateCall!: (value: unknown) => void
+    createCall.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveCreateCall = resolve
+      }),
+    )
+
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.get('[data-slot]').trigger('click')
+    await wrapper.get('input[name="visitor_name"]').setValue('Анна')
+    await wrapper.get('input[name="visitor_email"]').setValue('anna@example.com')
+
+    await wrapper.get('form').trigger('submit')
+    await wrapper.get('form').trigger('submit')
+
+    expect(createCall).toHaveBeenCalledTimes(1)
+    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined()
+
+    resolveCreateCall({ data: createdCall })
+    await flushPromises()
+  })
+
+  it.each(['slot_unavailable', 'call_type_changed'])(
+    'refreshes availability after %s without losing visitor data',
+    async (code) => {
+      getPublicCallTypeAvailability
+        .mockResolvedValueOnce({ data: availability() })
+        .mockResolvedValueOnce({ data: availability() })
+      createCall.mockResolvedValueOnce({
+        error: { code, message: 'The selected conditions are stale' },
+        response: { status: 409 },
+      })
+
+      const wrapper = mountView()
+      await flushPromises()
+      await wrapper.get('[data-slot]').trigger('click')
+      await wrapper.get('input[name="visitor_name"]').setValue('Анна')
+      await wrapper.get('input[name="visitor_email"]').setValue('anna@example.com')
+      await wrapper.get('textarea[name="visitor_notes"]').setValue('Вопрос о проекте')
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+
+      expect(getPublicCallTypeAvailability).toHaveBeenCalledTimes(2)
+      expect(wrapper.get('[role="alert"]').text()).toContain(
+        'Условия изменились. Выберите свободное время ещё раз.',
+      )
+      expect(wrapper.find('form').exists()).toBe(false)
+
+      await wrapper.get('[data-slot]').trigger('click')
+      expect(wrapper.get('input[name="visitor_name"]').element).toHaveProperty('value', 'Анна')
+      expect(wrapper.get('input[name="visitor_email"]').element).toHaveProperty(
+        'value',
+        'anna@example.com',
+      )
+      expect(wrapper.get('textarea[name="visitor_notes"]').element).toHaveProperty(
+        'value',
+        'Вопрос о проекте',
+      )
+    },
+  )
+
+  it('keeps the selected slot and visitor data after a network error', async () => {
+    getPublicCallTypeAvailability.mockResolvedValueOnce({ data: availability() })
+    createCall.mockRejectedValueOnce(new Error('network unavailable'))
+
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.get('[data-slot]').trigger('click')
+    await wrapper.get('input[name="visitor_name"]').setValue('Анна')
+    await wrapper.get('input[name="visitor_email"]').setValue('anna@example.com')
+    await wrapper.get('textarea[name="visitor_notes"]').setValue('Вопрос о проекте')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.get('[data-slot]').attributes('aria-pressed')).toBe('true')
+    expect(wrapper.get('input[name="visitor_name"]').element).toHaveProperty('value', 'Анна')
+    expect(wrapper.get('input[name="visitor_email"]').element).toHaveProperty(
+      'value',
+      'anna@example.com',
+    )
+    expect(wrapper.get('textarea[name="visitor_notes"]').element).toHaveProperty(
+      'value',
+      'Вопрос о проекте',
+    )
+    expect(wrapper.get('[role="alert"]').text()).toContain('Повторите отправку')
+  })
+
+  it('focuses the form heading only after mobile slot selection', async () => {
+    getPublicCallTypeAvailability.mockResolvedValue({ data: availability() })
+    const originalWidth = Object.getOwnPropertyDescriptor(window, 'innerWidth')
+
+    try {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: 375 })
+      const mobileView = mount(BookingView, {
+        attachTo: document.body,
+        global: { stubs: { RouterLink: RouterLinkStub } },
+      })
+      await flushPromises()
+      await mobileView.get('[data-slot]').trigger('click')
+
+      expect(document.activeElement).toBe(mobileView.get('h2[tabindex="-1"]').element)
+      expect(document.activeElement?.tagName).not.toBe('INPUT')
+      mobileView.unmount()
+
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 })
+      const desktopView = mount(BookingView, {
+        attachTo: document.body,
+        global: { stubs: { RouterLink: RouterLinkStub } },
+      })
+      await flushPromises()
+      await desktopView.get('[data-slot]').trigger('click')
+
+      expect(document.activeElement).not.toBe(desktopView.get('h2[tabindex="-1"]').element)
+      desktopView.unmount()
+    } finally {
+      if (originalWidth) Object.defineProperty(window, 'innerWidth', originalWidth)
+    }
+  })
+
   it('restores the confirmation in the same tab without exposing the internal id', async () => {
     sessionStorage.setItem('booking-confirmation', JSON.stringify(createdCall))
     getPublicCallTypeAvailability.mockResolvedValueOnce({ data: availability() })
@@ -229,6 +481,20 @@ describe('BookingView', () => {
     expect(wrapper.get('[data-confirmation]').text()).toContain('Звонок забронирован')
     expect(wrapper.get('[data-confirmation]').text()).toContain('Йрина')
     expect(wrapper.text()).not.toContain(createdCall.id)
+  })
+
+  it('removes the stored confirmation when the visitor starts another booking', async () => {
+    sessionStorage.setItem('booking-confirmation', JSON.stringify(createdCall))
+    getPublicCallTypeAvailability.mockResolvedValue({ data: availability() })
+
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+
+    expect(sessionStorage.getItem('booking-confirmation')).toBeNull()
+    expect(wrapper.find('[data-confirmation]').exists()).toBe(false)
+    expect(wrapper.findAll('[data-availability-day]')).toHaveLength(14)
   })
 
   it('keeps a scheduler skeleton until it renders all 14 dates and their slots', async () => {
