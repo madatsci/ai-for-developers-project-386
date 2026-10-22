@@ -22,6 +22,7 @@ var requestSlotDateTimePattern = regexp.MustCompile(`^[0-9]{4}-(?:0[1-9]|1[0-2])
 type HandlerServices struct {
 	PublicCallTypes   generated.PublicCallTypesAPIServicer
 	PublicCalls       generated.PublicCallsAPIServicer
+	AdminSchedules    generated.AdminSchedulesAPIServicer
 	AdminWorkingHours generated.AdminWorkingHoursAPIServicer
 }
 
@@ -31,6 +32,10 @@ func NewHandler(ping func(context.Context) error, services HandlerServices) http
 	publicCallsController := generated.NewPublicCallsAPIController(
 		services.PublicCalls,
 		generated.WithPublicCallsAPIErrorHandler(controllerErrorHandler),
+	)
+	adminSchedulesController := generated.NewAdminSchedulesAPIController(
+		services.AdminSchedules,
+		generated.WithAdminSchedulesAPIErrorHandler(controllerErrorHandler),
 	)
 	adminWorkingHoursController := generated.NewAdminWorkingHoursAPIController(
 		services.AdminWorkingHours,
@@ -45,10 +50,12 @@ func NewHandler(ping func(context.Context) error, services HandlerServices) http
 			publicRoutes["GetPublicCallTypeAvailability"],
 		}},
 		publicCallsController,
+		adminSchedulesController,
 		adminWorkingHoursController,
 	}
 	contracts := map[string]requestContract{
 		"/api/v1/public/calls":        {jsonMethod: http.MethodPost, validateJSON: validateCreateCallJSON},
+		"/api/v1/admin/schedules":     {jsonMethod: http.MethodPost},
 		"/api/v1/admin/working-hours": {jsonMethod: http.MethodPut},
 	}
 	return exactJSONContentType(productRequestGuard(contracts, generated.NewRouter(routers...)))
@@ -62,6 +69,10 @@ type requestContract struct {
 func productRequestGuard(contracts map[string]requestContract, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		contract, guarded := contracts[r.URL.Path]
+		if !guarded && strings.HasPrefix(r.URL.Path, "/api/v1/admin/schedules/") {
+			contract = requestContract{jsonMethod: http.MethodPut}
+			guarded = true
+		}
 		if !guarded {
 			next.ServeHTTP(w, r)
 			return
