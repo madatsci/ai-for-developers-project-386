@@ -53,8 +53,11 @@ func run() error {
 		Addr: addr,
 		Handler: httpapi.NewHandler(
 			pool.Ping,
-			httpapi.NewPublicCallTypesService(pool),
-			httpapi.NewPublicCallsService(pool),
+			httpapi.HandlerServices{
+				PublicCallTypes:   httpapi.NewPublicCallTypesService(pool),
+				PublicCalls:       httpapi.NewPublicCallsService(pool),
+				AdminWorkingHours: httpapi.NewAdminWorkingHoursService(pool),
+			},
 		),
 		ReadHeaderTimeout: 5 * time.Second,
 		WriteTimeout:      10 * time.Second,

@@ -19,16 +19,22 @@ const maxJSONBodyBytes = 64 * 1024
 
 var requestSlotDateTimePattern = regexp.MustCompile(`^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][05]:00(?:Z|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])$`)
 
-func NewHandler(
-	ping func(context.Context) error,
-	publicCallTypes generated.PublicCallTypesAPIServicer,
-	publicCalls generated.PublicCallsAPIServicer,
-) http.Handler {
+type HandlerServices struct {
+	PublicCallTypes   generated.PublicCallTypesAPIServicer
+	PublicCalls       generated.PublicCallsAPIServicer
+	AdminWorkingHours generated.AdminWorkingHoursAPIServicer
+}
+
+func NewHandler(ping func(context.Context) error, services HandlerServices) http.Handler {
 	healthController := generated.NewHealthAPIController(healthService{ping: ping})
-	publicController := generated.NewPublicCallTypesAPIController(publicCallTypes)
+	publicController := generated.NewPublicCallTypesAPIController(services.PublicCallTypes)
 	publicCallsController := generated.NewPublicCallsAPIController(
-		publicCalls,
-		generated.WithPublicCallsAPIErrorHandler(publicCallErrorHandler),
+		services.PublicCalls,
+		generated.WithPublicCallsAPIErrorHandler(controllerErrorHandler),
+	)
+	adminWorkingHoursController := generated.NewAdminWorkingHoursAPIController(
+		services.AdminWorkingHours,
+		generated.WithAdminWorkingHoursAPIErrorHandler(controllerErrorHandler),
 	)
 	publicRoutes := publicController.Routes()
 	routers := []generated.Router{
@@ -39,19 +45,25 @@ func NewHandler(
 			publicRoutes["GetPublicCallTypeAvailability"],
 		}},
 		publicCallsController,
+		adminWorkingHoursController,
 	}
-	return exactJSONContentType(createCallRequestGuard(generated.NewRouter(routers...)))
+	contracts := map[string]requestContract{
+		"/api/v1/public/calls":        {jsonMethod: http.MethodPost, validateJSON: validateCreateCallJSON},
+		"/api/v1/admin/working-hours": {jsonMethod: http.MethodPut},
+	}
+	return exactJSONContentType(productRequestGuard(contracts, generated.NewRouter(routers...)))
 }
 
-func createCallRequestGuard(next http.Handler) http.Handler {
+type requestContract struct {
+	jsonMethod   string
+	validateJSON func(http.ResponseWriter, []byte) bool
+}
+
+func productRequestGuard(contracts map[string]requestContract, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/public/calls" {
+		contract, guarded := contracts[r.URL.Path]
+		if !guarded {
 			next.ServeHTTP(w, r)
-			return
-		}
-		mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
-		if err != nil || mediaType != "application/json" {
-			writeDomainError(w, http.StatusUnsupportedMediaType, "unsupported_media_type", "Поддерживается только application/json")
 			return
 		}
 		if query := r.URL.Query(); len(query) > 0 {
@@ -65,22 +77,22 @@ func createCallRequestGuard(next http.Handler) http.Handler {
 			})
 			return
 		}
+		if r.Method != contract.jsonMethod {
+			next.ServeHTTP(w, r)
+			return
+		}
+		mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+		if err != nil || mediaType != "application/json" {
+			writeDomainError(w, http.StatusUnsupportedMediaType, "unsupported_media_type", "Поддерживается только application/json")
+			return
+		}
 		body, err := io.ReadAll(io.LimitReader(r.Body, maxJSONBodyBytes+1))
 		if err != nil || len(body) > maxJSONBodyBytes || !json.Valid(body) {
 			writeDomainError(w, http.StatusBadRequest, "invalid_request", "Некорректное тело запроса")
 			return
 		}
-		var rawFields map[string]json.RawMessage
-		if err := json.Unmarshal(body, &rawFields); err == nil {
-			if rawStartsAt, exists := rawFields["starts_at"]; exists {
-				var startsAt string
-				if err := json.Unmarshal(rawStartsAt, &startsAt); err == nil && !requestSlotDateTimePattern.MatchString(startsAt) {
-					writeValidationError(w, []generated.FieldError{
-						fieldError("body.starts_at", "invalid", "Укажите RFC 3339 время на пятиминутной сетке без долей секунды"),
-					})
-					return
-				}
-			}
+		if contract.validateJSON != nil && !contract.validateJSON(w, body) {
+			return
 		}
 		r.Body = io.NopCloser(bytes.NewReader(body))
 		r.ContentLength = int64(len(body))
@@ -88,7 +100,26 @@ func createCallRequestGuard(next http.Handler) http.Handler {
 	})
 }
 
-func publicCallErrorHandler(w http.ResponseWriter, _ *http.Request, err error, result *generated.ImplResponse) {
+func validateCreateCallJSON(w http.ResponseWriter, body []byte) bool {
+	var rawFields map[string]json.RawMessage
+	if err := json.Unmarshal(body, &rawFields); err != nil {
+		return true
+	}
+	rawStartsAt, exists := rawFields["starts_at"]
+	if !exists {
+		return true
+	}
+	var startsAt string
+	if err := json.Unmarshal(rawStartsAt, &startsAt); err != nil || requestSlotDateTimePattern.MatchString(startsAt) {
+		return true
+	}
+	writeValidationError(w, []generated.FieldError{
+		fieldError("body.starts_at", "invalid", "Укажите RFC 3339 время на пятиминутной сетке без долей секунды"),
+	})
+	return false
+}
+
+func controllerErrorHandler(w http.ResponseWriter, _ *http.Request, err error, result *generated.ImplResponse) {
 	var requiredError *generated.RequiredError
 	if errors.As(err, &requiredError) {
 		writeValidationError(w, []generated.FieldError{
@@ -98,6 +129,12 @@ func publicCallErrorHandler(w http.ResponseWriter, _ *http.Request, err error, r
 	}
 	var parsingError *generated.ParsingError
 	if errors.As(err, &parsingError) {
+		if parsingError.Param == "DayOfWeek" {
+			writeValidationError(w, []generated.FieldError{
+				fieldError("body.days.day_of_week", "invalid", "День недели должен быть от 1 до 7"),
+			})
+			return
+		}
 		writeDomainError(w, http.StatusBadRequest, "invalid_request", "Некорректное тело запроса")
 		return
 	}

@@ -89,11 +89,25 @@ func (publicCallTypesStub) GetPublicCallTypeAvailability(context.Context, string
 }
 
 func newTestHandler(ping func(context.Context) error) http.Handler {
-	return NewHandler(ping, publicCallTypesStub{}, publicCallsStub{})
+	return NewHandler(ping, HandlerServices{
+		PublicCallTypes:   publicCallTypesStub{},
+		PublicCalls:       publicCallsStub{},
+		AdminWorkingHours: adminWorkingHoursStub{},
+	})
 }
 
 type publicCallsStub struct{}
 
 func (publicCallsStub) CreateCall(context.Context, string, generated.CreateCallRequest) (generated.ImplResponse, error) {
 	return generated.Response(http.StatusCreated, nil), nil
+}
+
+type adminWorkingHoursStub struct{}
+
+func (adminWorkingHoursStub) GetAdminWorkingHours(context.Context) (generated.ImplResponse, error) {
+	return generated.Response(http.StatusOK, nil), nil
+}
+
+func (adminWorkingHoursStub) UpdateAdminWorkingHours(context.Context, string, generated.UpdateWorkingHoursRequest) (generated.ImplResponse, error) {
+	return generated.Response(http.StatusOK, nil), nil
 }

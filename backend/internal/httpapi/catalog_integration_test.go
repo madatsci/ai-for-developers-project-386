@@ -44,7 +44,7 @@ func TestPublicCallTypeCatalogReadsActiveTypesFromPostgres(t *testing.T) {
 		t.Fatalf("soft-delete catalog fixture: %v", err)
 	}
 
-	handler := NewHandler(pool.Ping, NewPublicCallTypesService(pool), NewPublicCallsService(pool))
+	handler := newIntegrationHandler(pool, NewPublicCallTypesService(pool), NewPublicCallsService(pool))
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/public/call-types", nil))
 
@@ -88,7 +88,7 @@ func TestPublicCallTypeReadsActiveAndDisabledTypesByStableSlug(t *testing.T) {
 		t.Fatalf("disable call type: %v", err)
 	}
 
-	handler := NewHandler(pool.Ping, NewPublicCallTypesService(pool), NewPublicCallsService(pool))
+	handler := newIntegrationHandler(pool, NewPublicCallTypesService(pool), NewPublicCallsService(pool))
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/public/call-types/zvonok-na-30-minut", nil))
 
@@ -167,7 +167,7 @@ func TestPublicCallTypeAvailabilityUsesMoscowWindowAndAllExistingCalls(t *testin
 
 	moscow := time.FixedZone("Europe/Moscow", 3*60*60)
 	now := time.Date(2026, time.October, 21, 10, 2, 34, 123_000_000, moscow)
-	handler := NewHandler(pool.Ping, newPublicCallTypesService(pool, func() time.Time { return now }), newPublicCallsService(pool, func() time.Time { return now }))
+	handler := newIntegrationHandler(pool, newPublicCallTypesService(pool, func() time.Time { return now }), newPublicCallsService(pool, func() time.Time { return now }))
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, httptest.NewRequest(
 		http.MethodGet,
@@ -224,7 +224,7 @@ func TestPublicCallTypeAvailabilityDistinguishesUnavailableAndMissingTypes(t *te
 		t.Fatalf("soft-delete call type: %v", err)
 	}
 
-	handler := NewHandler(pool.Ping, NewPublicCallTypesService(pool), NewPublicCallsService(pool))
+	handler := newIntegrationHandler(pool, NewPublicCallTypesService(pool), NewPublicCallsService(pool))
 	for _, example := range []struct {
 		slug string
 		code int
@@ -278,4 +278,16 @@ func catalogTestPool(t *testing.T) *pgxpool.Pool {
 	}
 	t.Cleanup(pool.Close)
 	return pool
+}
+
+func newIntegrationHandler(
+	pool *pgxpool.Pool,
+	publicCallTypes generated.PublicCallTypesAPIServicer,
+	publicCalls generated.PublicCallsAPIServicer,
+) http.Handler {
+	return NewHandler(pool.Ping, HandlerServices{
+		PublicCallTypes:   publicCallTypes,
+		PublicCalls:       publicCalls,
+		AdminWorkingHours: NewAdminWorkingHoursService(pool),
+	})
 }

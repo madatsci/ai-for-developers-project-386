@@ -29,8 +29,8 @@ func TestCreateCallPersistsNormalizedSnapshot(t *testing.T) {
 	}
 
 	now := time.Date(2026, time.October, 22, 10, 0, 0, 0, moscowLocation)
-	handler := NewHandler(
-		pool.Ping,
+	handler := newIntegrationHandler(
+		pool,
 		newPublicCallTypesService(pool, func() time.Time { return now }),
 		newPublicCallsService(pool, func() time.Time { return now }),
 	)
@@ -117,7 +117,7 @@ func TestCreateCallAcceptsSlotAcrossTouchingAvailabilityIntervals(t *testing.T) 
 		}
 	}
 	now := time.Date(2026, time.October, 22, 10, 0, 0, 0, moscowLocation)
-	handler := NewHandler(pool.Ping, newPublicCallTypesService(pool, func() time.Time { return now }), newPublicCallsService(pool, func() time.Time { return now }))
+	handler := newIntegrationHandler(pool, newPublicCallTypesService(pool, func() time.Time { return now }), newPublicCallsService(pool, func() time.Time { return now }))
 	body := `{"call_type_slug":"zvonok-na-30-minut","call_type_version":"1","starts_at":"2026-10-23T09:45:00+03:00","visitor_name":"Анна","visitor_email":"anna@example.com"}`
 
 	response := postCall(t, handler, "8f0902ca-91a1-4f87-87ed-e3b5b00c86b7", body)
@@ -136,7 +136,7 @@ func TestCreateCallSerializesConcurrentRequests(t *testing.T) {
 		t.Fatalf("seed: %v", err)
 	}
 	now := time.Date(2026, time.October, 22, 10, 0, 0, 0, moscowLocation)
-	handler := NewHandler(pool.Ping, newPublicCallTypesService(pool, func() time.Time { return now }), newPublicCallsService(pool, func() time.Time { return now }))
+	handler := newIntegrationHandler(pool, newPublicCallTypesService(pool, func() time.Time { return now }), newPublicCallsService(pool, func() time.Time { return now }))
 
 	t.Run("identical requests create one call", func(t *testing.T) {
 		body := `{"call_type_slug":"zvonok-na-30-minut","call_type_version":"1","starts_at":"2026-10-23T10:00:00+03:00","visitor_name":"Анна","visitor_email":"anna@example.com"}`
@@ -217,8 +217,8 @@ func TestCreateCallRejectsInvalidHTTPAndFields(t *testing.T) {
 		t.Fatalf("seed: %v", err)
 	}
 	now := time.Date(2026, time.October, 22, 10, 0, 0, 0, moscowLocation)
-	handler := NewHandler(
-		pool.Ping,
+	handler := newIntegrationHandler(
+		pool,
 		newPublicCallTypesService(pool, func() time.Time { return now }),
 		newPublicCallsService(pool, func() time.Time { return now }),
 	)
@@ -297,7 +297,7 @@ func TestCreateCallIdempotency(t *testing.T) {
 		t.Fatalf("seed: %v", err)
 	}
 	now := time.Date(2026, time.October, 22, 10, 0, 0, 0, moscowLocation)
-	handler := NewHandler(pool.Ping, newPublicCallTypesService(pool, func() time.Time { return now }), newPublicCallsService(pool, func() time.Time { return now }))
+	handler := newIntegrationHandler(pool, newPublicCallTypesService(pool, func() time.Time { return now }), newPublicCallsService(pool, func() time.Time { return now }))
 	key := "8f0902ca-91a1-4f87-87ed-e3b5b00c86b7"
 	firstBody := `{"call_type_slug":"zvonok-na-30-minut","call_type_version":"1","starts_at":"2026-10-23T10:00:00+03:00","visitor_name":"  Анна  ","visitor_email":"anna@EXAMPLE.COM","visitor_notes":null}`
 
@@ -337,7 +337,7 @@ func TestCreateCallDoesNotReserveIdempotencyKeyAfterFailure(t *testing.T) {
 		t.Fatalf("seed: %v", err)
 	}
 	now := time.Date(2026, time.October, 22, 10, 0, 0, 0, moscowLocation)
-	handler := NewHandler(pool.Ping, newPublicCallTypesService(pool, func() time.Time { return now }), newPublicCallsService(pool, func() time.Time { return now }))
+	handler := newIntegrationHandler(pool, newPublicCallTypesService(pool, func() time.Time { return now }), newPublicCallsService(pool, func() time.Time { return now }))
 	key := "8f0902ca-91a1-4f87-87ed-e3b5b00c86b7"
 	stale := `{"call_type_slug":"zvonok-na-30-minut","call_type_version":"2","starts_at":"2026-10-23T10:00:00+03:00","visitor_name":"Анна","visitor_email":"anna@example.com"}`
 	failed := postCall(t, handler, key, stale)
