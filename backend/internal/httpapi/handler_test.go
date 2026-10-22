@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/madatsci/ai-for-developers-project-386/backend/internal/httpapi/generated"
 )
 
 func TestHealth(t *testing.T) {
@@ -20,7 +22,7 @@ func TestHealth(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			called := false
-			handler := NewHandler(func(ctx context.Context) error {
+			handler := newTestHandler(func(ctx context.Context) error {
 				called = true
 				if _, ok := ctx.Deadline(); !ok {
 					t.Error("database check must have a deadline")
@@ -50,7 +52,7 @@ func TestHealth(t *testing.T) {
 }
 
 func TestRoutes(t *testing.T) {
-	handler := NewHandler(func(context.Context) error {
+	handler := newTestHandler(func(context.Context) error {
 		t.Fatal("unexpected database check")
 		return nil
 	})
@@ -61,7 +63,7 @@ func TestRoutes(t *testing.T) {
 	}{
 		{http.MethodPost, "/api/health", http.StatusMethodNotAllowed},
 		{http.MethodGet, "/api/missing", http.StatusNotFound},
-		{http.MethodGet, "/api/v1/public/call-types", http.StatusNotFound},
+		{http.MethodGet, "/api/v1/public/call-types", http.StatusOK},
 		{http.MethodPost, "/api/v1/public/calls", http.StatusNotFound},
 	} {
 		response := httptest.NewRecorder()
@@ -70,4 +72,22 @@ func TestRoutes(t *testing.T) {
 			t.Errorf("%s %s: status = %d, want %d", tt.method, tt.path, response.Code, tt.code)
 		}
 	}
+}
+
+type publicCallTypesStub struct{}
+
+func (publicCallTypesStub) ListPublicCallTypes(context.Context) (generated.ImplResponse, error) {
+	return domainResponse(http.StatusOK, generated.PublicCallTypeList{Items: []generated.PublicCallTypeSummary{}}), nil
+}
+
+func (publicCallTypesStub) GetPublicCallType(context.Context, string) (generated.ImplResponse, error) {
+	return generated.Response(http.StatusNotFound, nil), nil
+}
+
+func (publicCallTypesStub) GetPublicCallTypeAvailability(context.Context, string) (generated.ImplResponse, error) {
+	return generated.Response(http.StatusNotFound, nil), nil
+}
+
+func newTestHandler(ping func(context.Context) error) http.Handler {
+	return NewHandler(ping, publicCallTypesStub{})
 }

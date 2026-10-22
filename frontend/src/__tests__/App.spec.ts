@@ -1,4 +1,10 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const { listPublicCallTypes } = vi.hoisted(() => ({
+  listPublicCallTypes: vi.fn(),
+}))
+
+vi.mock('@/api/generated', () => ({ listPublicCallTypes }))
 
 import { flushPromises, mount } from '@vue/test-utils'
 import App from '../App.vue'
@@ -7,6 +13,31 @@ import router from '../router'
 describe('App', () => {
   beforeEach(() => {
     window.sessionStorage.clear()
+    listPublicCallTypes.mockReset()
+    listPublicCallTypes.mockResolvedValue({
+      data: {
+        items: [
+          {
+            slug: 'zvonok-na-15-minut',
+            name: 'Звонок на 15 минут',
+            description: null,
+            duration_minutes: 15,
+          },
+          {
+            slug: 'zvonok-na-30-minut',
+            name: 'Звонок на 30 минут',
+            description: null,
+            duration_minutes: 30,
+          },
+          {
+            slug: 'zvonok-na-60-minut',
+            name: 'Звонок на 60 минут',
+            description: null,
+            duration_minutes: 60,
+          },
+        ],
+      },
+    })
   })
 
   it('explains the service and links every call to action to booking', async () => {
@@ -39,7 +70,8 @@ describe('App', () => {
     expect(wrapper.get('h1').text()).toBe('Бронирование звонка')
     expect(wrapper.get('a[href="/"]').text()).toBe('Календарь звонков')
 
-    await wrapper.get('button').trigger('click')
+    await flushPromises()
+    await wrapper.get('a[href="/booking/zvonok-na-15-minut"]').trigger('click')
     await flushPromises()
 
     expect(router.currentRoute.value.path).toBe('/booking/zvonok-na-15-minut')
@@ -48,16 +80,10 @@ describe('App', () => {
   })
 
   it('keeps the selected planner flow interactive and restores its confirmation', async () => {
-    await router.push('/booking?variant=B')
+    await router.push('/booking/zvonok-na-15-minut?variant=B')
     await router.isReady()
 
     const wrapper = mount(App, { global: { plugins: [router] } })
-
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('Звонок на 15 минут'))!
-      .trigger('click')
-    await flushPromises()
 
     await wrapper
       .findAll('button')
@@ -83,16 +109,11 @@ describe('App', () => {
   })
 
   it('preserves contact details while the visitor changes the call type', async () => {
-    await router.push('/booking?variant=B')
+    await router.push('/booking/zvonok-na-15-minut?variant=B')
     await router.isReady()
 
     const wrapper = mount(App, { global: { plugins: [router] } })
 
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('Звонок на 15 минут'))!
-      .trigger('click')
-    await flushPromises()
     await wrapper
       .findAll('button')
       .find((button) => button.text() === '09:00')!
@@ -106,10 +127,7 @@ describe('App', () => {
       .find((button) => button.text().includes('Все типы'))!
       .trigger('click')
     await flushPromises()
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('Звонок на 30 минут'))!
-      .trigger('click')
+    await wrapper.get('a[href="/booking/zvonok-na-30-minut"]').trigger('click')
     await flushPromises()
 
     expect((wrapper.get('input[type="text"]').element as HTMLInputElement).value).toBe('Ирина')

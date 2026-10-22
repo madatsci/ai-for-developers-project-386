@@ -51,7 +51,7 @@ func run() error {
 	}
 	server := &http.Server{
 		Addr:              addr,
-		Handler:           httpapi.NewHandler(pool.Ping),
+		Handler:           httpapi.NewHandler(pool.Ping, httpapi.NewPublicCallTypesService(pool)),
 		ReadHeaderTimeout: 5 * time.Second,
 		WriteTimeout:      10 * time.Second,
 		IdleTimeout:       60 * time.Second,

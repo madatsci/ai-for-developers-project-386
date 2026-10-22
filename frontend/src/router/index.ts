@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import BookingCatalogView from '@/views/BookingCatalogView.vue'
 import BookingView from '@/views/BookingView.vue'
 import HomeView from '@/views/HomeView.vue'
 import AdminPrototypeView from '@/views/admin-prototype/AdminPrototypeView.vue'
@@ -8,7 +9,7 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/', name: 'home', component: HomeView },
-    { path: '/booking', name: 'booking', component: BookingView },
+    { path: '/booking', name: 'booking', component: BookingCatalogView },
     { path: '/booking/:typeSlug', name: 'booking-type', component: BookingView },
     { path: '/admin/prototype', name: 'admin-prototype', component: AdminPrototypeView },
     {

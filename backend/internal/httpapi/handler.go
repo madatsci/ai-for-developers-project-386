@@ -8,9 +8,15 @@ import (
 	"github.com/madatsci/ai-for-developers-project-386/backend/internal/httpapi/generated"
 )
 
-func NewHandler(ping func(context.Context) error) http.Handler {
+func NewHandler(
+	ping func(context.Context) error,
+	publicCallTypes generated.PublicCallTypesAPIServicer,
+) http.Handler {
 	healthController := generated.NewHealthAPIController(healthService{ping: ping})
-	return exactJSONContentType(generated.NewRouter(healthController))
+	publicController := generated.NewPublicCallTypesAPIController(publicCallTypes)
+	listRoute := publicController.Routes()["ListPublicCallTypes"]
+	routers := []generated.Router{healthController, routeSubset{routes: []generated.Route{listRoute}}}
+	return exactJSONContentType(generated.NewRouter(routers...))
 }
 
 func exactJSONContentType(next http.Handler) http.Handler {
