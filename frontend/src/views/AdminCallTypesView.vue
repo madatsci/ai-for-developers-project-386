@@ -365,7 +365,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
           </div>
         </header>
 
-        <p v-if="actionError" class="mt-6 text-sm font-medium text-red-700" role="alert">
+        <p v-if="actionError && !form" class="mt-6 text-sm font-medium text-red-700" role="alert">
           {{ actionError }}
         </p>
         <p v-if="notice" class="mt-6 text-sm font-medium text-emerald-700" role="status">
@@ -566,6 +566,9 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
             <div
               class="mt-6 border-t border-slate-300 bg-slate-100/95 py-5 backdrop-blur sm:sticky sm:bottom-0"
             >
+              <p v-if="actionError" class="mb-3 text-sm font-medium text-red-700" role="alert">
+                {{ actionError }}
+              </p>
               <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <button
