@@ -19,6 +19,7 @@ const state = ref<PageState>('loading')
 const callType = ref<PublicCallType | null>(null)
 const availability = ref<AvailabilityResponseBody | null>(null)
 const activeCallTypes = ref<PublicCallTypeSummary[]>([])
+const displayedCallType = computed(() => availability.value?.call_type ?? callType.value)
 
 const hasNoSlots = computed(
   () =>
@@ -175,13 +176,13 @@ watch(typeSlug, loadPage, { immediate: true })
       <aside class="lg:sticky lg:top-8 lg:self-start">
         <p class="text-xs font-bold tracking-[0.18em] text-blue-700 uppercase">Планировщик</p>
         <h1 class="mt-3 text-3xl font-bold tracking-tight">
-          {{ callType?.name ?? 'Выберите свободное время' }}
+          {{ displayedCallType?.name ?? 'Выберите свободное время' }}
         </h1>
-        <p v-if="callType?.description" class="mt-4 leading-7 text-slate-600">
-          {{ callType.description }}
+        <p v-if="displayedCallType?.description" class="mt-4 leading-7 text-slate-600">
+          {{ displayedCallType.description }}
         </p>
-        <p v-if="callType" class="mt-5 font-mono text-sm text-slate-500">
-          {{ callType.duration_minutes }} минут · Europe/Moscow
+        <p v-if="displayedCallType" class="mt-5 font-mono text-sm text-slate-500">
+          {{ displayedCallType.duration_minutes }} минут · Europe/Moscow
         </p>
       </aside>
 

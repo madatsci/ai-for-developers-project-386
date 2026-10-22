@@ -123,6 +123,23 @@ describe('BookingView', () => {
     expect(wrapper.find('[aria-busy="true"]').exists()).toBe(false)
   })
 
+  it('renders call type metadata from the same availability snapshot as the slots', async () => {
+    const currentAvailability = availability()
+    currentAvailability.call_type.name = 'Обновлённый тип звонка'
+    currentAvailability.call_type.description = 'Актуальное описание'
+    currentAvailability.call_type.duration_minutes = 45
+    currentAvailability.call_type.call_type_version = '2'
+    getPublicCallTypeAvailability.mockResolvedValueOnce({ data: currentAvailability })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Обновлённый тип звонка')
+    expect(wrapper.text()).toContain('Актуальное описание')
+    expect(wrapper.text()).toContain('45 минут')
+    expect(wrapper.text()).not.toContain('Обсудим задачу')
+  })
+
   it('shows a local availability error and retries without losing the call type', async () => {
     getPublicCallTypeAvailability
       .mockResolvedValueOnce({ error: { code: 'internal_error' } })
