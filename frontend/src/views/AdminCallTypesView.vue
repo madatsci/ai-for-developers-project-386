@@ -119,7 +119,7 @@ async function loadCallTypes() {
       : route.query.call_type_id
     const requestedCallType = callTypes.value.find((callType) => callType.id === requestedID)
     const initialCallType = requestedCallType ?? callTypes.value[0]
-    if (initialCallType) acceptCallType(initialCallType)
+    if (initialCallType) acceptCallType(initialCallType, requestedCallType !== undefined)
   } catch {
     loadFailed.value = true
   } finally {

@@ -163,6 +163,8 @@ describe('AdminCallTypesView', () => {
       'value',
       'Длинная консультация',
     )
+    expect(wrapper.get('[aria-label="Список типов звонков"]').classes()).toContain('hidden')
+    expect(wrapper.get('form').classes()).toContain('block')
   })
 
   it('updates with If-Match, preserves edits on conflict, and protects dirty navigation', async () => {
