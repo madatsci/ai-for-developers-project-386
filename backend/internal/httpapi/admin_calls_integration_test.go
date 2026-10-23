@@ -244,11 +244,39 @@ func TestAdminCallsFiltersAndPaginatesStableSnapshot(t *testing.T) {
 	if len(unicodePage.Items) != 1 || unicodePage.Items[0].VisitorName != "Straße" {
 		t.Errorf("Unicode search items = %+v", unicodePage.Items)
 	}
+	if _, err := pool.Exec(ctx, `
+		UPDATE calls
+		SET visitor_name = 'ẖ'
+		WHERE id = '018f0000-0000-7000-8000-000000000601'
+	`); err != nil {
+		t.Fatalf("update Unicode normalization fixture: %v", err)
+	}
+	normalizedSearch := httptest.NewRecorder()
+	handler.ServeHTTP(normalizedSearch, httptest.NewRequest(http.MethodGet, "/api/v1/admin/calls?q="+url.QueryEscape("ẖ"), nil))
+	if normalizedSearch.Code != http.StatusOK {
+		t.Fatalf("normalized search status = %d, want 200; body=%s", normalizedSearch.Code, normalizedSearch.Body.String())
+	}
+	var normalizedPage generated.AdminCallPage
+	if err := json.Unmarshal(normalizedSearch.Body.Bytes(), &normalizedPage); err != nil {
+		t.Fatalf("decode normalized search: %v", err)
+	}
+	if len(normalizedPage.Items) != 1 || normalizedPage.Items[0].VisitorName != "ẖ" {
+		t.Errorf("normalized search items = %+v", normalizedPage.Items)
+	}
+
+	fractionalCursor, err := encodeAdminCallsCursor(adminCallsCursor{
+		AsOf: "2026-10-20T12:00:00.5+03:00", Period: "upcoming",
+		StartsAt: "2026-10-20T13:00:00+03:00", ID: "018f0000-0000-7000-8000-000000000600",
+	})
+	if err != nil {
+		t.Fatalf("encode fractional cursor: %v", err)
+	}
 
 	for name, requestURL := range map[string]string{
-		"changed filters": secondURL + "&q=other",
-		"changed period":  secondURL + "&period=past",
-		"corrupted":       "/api/v1/admin/calls?cursor=not-a-cursor",
+		"changed filters":     secondURL + "&q=other",
+		"changed period":      secondURL + "&period=past",
+		"corrupted":           "/api/v1/admin/calls?cursor=not-a-cursor",
+		"fractional snapshot": "/api/v1/admin/calls?cursor=" + url.QueryEscape(fractionalCursor),
 	} {
 		t.Run(name, func(t *testing.T) {
 			response := httptest.NewRecorder()
