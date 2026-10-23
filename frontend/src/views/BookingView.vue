@@ -499,7 +499,9 @@ watch(typeSlug, loadPage, { immediate: true })
               class="rounded-xl border border-slate-200 bg-white p-5"
             >
               <h3 class="font-bold capitalize">{{ formatDate(day.date) }}</h3>
-              <p class="mt-1 font-mono text-xs text-slate-400">{{ day.date }}</p>
+              <p data-availability-date class="mt-1 font-mono text-xs text-slate-400">
+                {{ day.date }}
+              </p>
               <div v-if="day.slots.length" class="mt-4 flex flex-wrap gap-2">
                 <button
                   v-for="slot in day.slots"

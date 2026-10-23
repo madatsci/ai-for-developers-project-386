@@ -28,7 +28,7 @@ Write idiomatic Go and always run `gofmt`. Use lowercase package names, exported
 
 ## Testing Guidelines
 
-Add Go tests as `*_test.go`, preferably table-driven for multiple cases. Place frontend tests under `frontend/src/__tests__/` and name them `*.spec.ts`; use Vue Test Utils with Vitest. Tests must be deterministic and should not require Docker unless they are explicit integration or smoke tests. Run `make test` during development and `make check` before opening a pull request.
+Add Go tests as `*_test.go`, preferably table-driven for multiple cases. Place frontend tests under `frontend/src/__tests__/` and name them `*.spec.ts`; use Vue Test Utils with Vitest. Browser E2E tests live under `frontend/e2e/` and use Playwright against the production build. Tests must be deterministic and should not require Docker unless they are explicit integration or smoke tests. Run `make test` during development and `make check` before opening a pull request.
 
 ## Commit & Pull Request Guidelines
 

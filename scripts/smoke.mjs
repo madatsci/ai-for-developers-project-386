@@ -1,33 +1,10 @@
 import assert from 'node:assert/strict'
-import { spawn } from 'node:child_process'
-import { once } from 'node:events'
 import { setTimeout as delay } from 'node:timers/promises'
 
-// Separate ports allow this check to run alongside the development servers.
-const backendPort = process.env.SMOKE_BACKEND_PORT ?? '18080'
-const frontendPort = process.env.SMOKE_FRONTEND_PORT ?? '14173'
-const backendURL = `http://127.0.0.1:${backendPort}`
-const frontendURL = `http://127.0.0.1:${frontendPort}`
-const children = []
+const baseURL = process.env.SMOKE_BASE_URL ?? 'http://127.0.0.1:18080'
 
-function start(command, args, options = {}) {
-  const child = spawn(command, args, { stdio: 'inherit', ...options })
-  child.on('error', (error) => {
-    child.startError = error
-  })
-  children.push(child)
-  return child
-}
-
-function assertRunning(child) {
-  if (child.startError) throw child.startError
-  assert.equal(child.exitCode, null, 'Server exited before the smoke test finished')
-  assert.equal(child.signalCode, null, 'Server was terminated during the smoke test')
-}
-
-async function waitFor(url, child) {
+async function waitFor(url) {
   for (let attempt = 0; attempt < 60; attempt++) {
-    assertRunning(child)
     try {
       const response = await fetch(url, { signal: AbortSignal.timeout(1000) })
       if (response.ok) return response
@@ -39,33 +16,11 @@ async function waitFor(url, child) {
   throw new Error(`Server did not become ready: ${url}`)
 }
 
-async function stop(child) {
-  if (!child.pid || child.exitCode !== null || child.signalCode !== null) return
-  const exited = once(child, 'exit')
-  child.kill('SIGTERM')
-  const timeout = setTimeout(() => child.kill('SIGKILL'), 5000)
-  try {
-    await exited
-  } finally {
-    clearTimeout(timeout)
-  }
-}
-
-for (const signal of ['SIGINT', 'SIGTERM']) {
-  process.once(signal, async () => {
-    await Promise.all(children.map(stop))
-    process.exit(signal === 'SIGINT' ? 130 : 143)
-  })
-}
-
 try {
-  const backend = start('./.bin/api', [], {
-    env: { ...process.env, HTTP_ADDR: `127.0.0.1:${backendPort}` },
-  })
-  const health = await waitFor(`${backendURL}/api/health`, backend)
+  const health = await waitFor(`${baseURL}/api/health`)
   assert.deepEqual(await health.json(), { status: 'ok' })
 
-  const callTypes = await fetch(`${backendURL}/api/v1/public/call-types`, {
+  const callTypes = await fetch(`${baseURL}/api/v1/public/call-types`, {
     signal: AbortSignal.timeout(3000),
   })
   assert.equal(callTypes.status, 200)
@@ -87,7 +42,7 @@ try {
     )
   }
 
-  const schedulesResponse = await fetch(`${backendURL}/api/v1/admin/schedules`, {
+  const schedulesResponse = await fetch(`${baseURL}/api/v1/admin/schedules`, {
     signal: AbortSignal.timeout(3000),
   })
   assert.equal(schedulesResponse.status, 200)
@@ -95,7 +50,7 @@ try {
   assert.ok(schedule?.id, 'Seeded schedule is missing')
 
   const smokeName = `Smoke ${Date.now()}`
-  const createdResponse = await fetch(`${backendURL}/api/v1/admin/call-types`, {
+  const createdResponse = await fetch(`${baseURL}/api/v1/admin/call-types`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -111,13 +66,13 @@ try {
   const createdType = await createdResponse.json()
 
   const publicCreatedResponse = await fetch(
-    `${backendURL}/api/v1/public/call-types/${createdType.slug}`,
+    `${baseURL}/api/v1/public/call-types/${createdType.slug}`,
     { signal: AbortSignal.timeout(3000) },
   )
   assert.equal(publicCreatedResponse.status, 200)
   assert.equal((await publicCreatedResponse.json()).name, smokeName)
 
-  const disabledResponse = await fetch(`${backendURL}/api/v1/admin/call-types/${createdType.id}`, {
+  const disabledResponse = await fetch(`${baseURL}/api/v1/admin/call-types/${createdType.id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', 'If-Match': '"1"' },
     body: JSON.stringify({
@@ -132,7 +87,7 @@ try {
   assert.equal(disabledResponse.status, 200)
   assert.equal(disabledResponse.headers.get('etag'), '"2"')
 
-  const publicAfterDisable = await fetch(`${backendURL}/api/v1/public/call-types`, {
+  const publicAfterDisable = await fetch(`${baseURL}/api/v1/public/call-types`, {
     signal: AbortSignal.timeout(3000),
   })
   assert.equal(publicAfterDisable.status, 200)
@@ -141,7 +96,7 @@ try {
     'Disabled call type is still present in the public catalog',
   )
 
-  const adminCallsResponse = await fetch(`${backendURL}/api/v1/admin/calls`, {
+  const adminCallsResponse = await fetch(`${baseURL}/api/v1/admin/calls`, {
     signal: AbortSignal.timeout(3000),
   })
   assert.equal(adminCallsResponse.status, 200)
@@ -150,19 +105,14 @@ try {
   assert.equal(typeof adminCalls.as_of, 'string')
   assert.ok(Array.isArray(adminCalls.items), 'Admin calls journal items are missing')
 
-  const deletedResponse = await fetch(`${backendURL}/api/v1/admin/call-types/${createdType.id}`, {
+  const deletedResponse = await fetch(`${baseURL}/api/v1/admin/call-types/${createdType.id}`, {
     method: 'DELETE',
     headers: { 'If-Match': '"2"' },
     signal: AbortSignal.timeout(3000),
   })
   assert.equal(deletedResponse.status, 204)
 
-  const frontend = start(
-    process.execPath,
-    ['node_modules/vite/bin/vite.js', 'preview', '--port', frontendPort, '--strictPort'],
-    { cwd: 'frontend', env: { ...process.env, API_PROXY_TARGET: backendURL } },
-  )
-  const page = await waitFor(frontendURL, frontend)
+  const page = await waitFor(baseURL)
   const html = await page.text()
   assert.match(html, /<div id="app"><\/div>/)
   assert.match(html, /Календарь звонков/)
@@ -177,23 +127,20 @@ try {
     'Built CSS is missing',
   )
   for (const [, path] of assets) {
-    const asset = await fetch(`${frontendURL}${path}`, {
+    const asset = await fetch(`${baseURL}${path}`, {
       signal: AbortSignal.timeout(3000),
     })
     assert.equal(asset.status, 200, `Asset is unavailable: ${path}`)
     assert.ok((await asset.text()).length > 0, `Asset is empty: ${path}`)
   }
 
-  const proxied = await fetch(`${frontendURL}/api/health`, {
+  const proxied = await fetch(`${baseURL}/api/health`, {
     signal: AbortSignal.timeout(3000),
   })
   assert.equal(proxied.status, 200)
   assert.deepEqual(await proxied.json(), { status: 'ok' })
-  children.forEach(assertRunning)
-  console.log('Smoke test passed: frontend assets → API proxy → Go backend → PostgreSQL')
+  console.log('Smoke test passed: frontend assets → same-origin Go API → PostgreSQL')
 } catch (error) {
   console.error(error)
   process.exitCode = 1
-} finally {
-  await Promise.all(children.map(stop))
 }

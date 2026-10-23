@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: calendar
       POSTGRES_PASSWORD: calendar
     ports:
-      - "127.0.0.1:5433:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
     healthcheck:
@@ -14,6 +14,18 @@ services:
       interval: 2s
       timeout: 3s
       retries: 15
+
+  app:
+    build:
+      context: .
+      target: application
+    environment:
+      DATABASE_URL: postgres://calendar:calendar@postgres:5432/calendar?sslmode=disable
+    ports:
+      - "127.0.0.1:${APP_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
   postgres_data:

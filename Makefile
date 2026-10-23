@@ -6,30 +6,34 @@ export DATABASE_URL ?= postgres://calendar:calendar@127.0.0.1:5433/calendar?sslm
 export HTTP_ADDR ?= 127.0.0.1:8080
 export API_PROXY_TARGET ?= http://127.0.0.1:8080
 export FRONTEND_PORT ?= 5175
+SMOKE_APP_PORT ?= 18080
+SMOKE_POSTGRES_PORT ?= 15433
+SMOKE_PROJECT ?= calendar-smoke
 
 GOLANGCI_VERSION := v2.15.0
 GOLANGCI := $(CURDIR)/.bin/$(GOLANGCI_VERSION)/golangci-lint
 
-.PHONY: help setup install tools db-up db-down migrate seed dev dev-backend dev-frontend test test-backend test-integration test-frontend lint lint-backend lint-frontend lint-typespec lint-client lint-server format build build-backend build-frontend build-typespec generate generate-client generate-server smoke check
+.PHONY: help setup install tools browser db-up db-down migrate seed dev dev-backend dev-frontend test test-backend test-integration test-frontend lint lint-backend lint-frontend lint-typespec lint-openapi lint-client lint-server format build build-backend build-frontend build-typespec generate generate-client generate-server container-build smoke check
 
 help:
-	@echo "make setup        Install dependencies and the pinned Go linter"
+	@echo "make setup        Install dependencies, Chromium and the pinned Go linter"
 	@echo "make dev          Start PostgreSQL, backend and frontend"
 	@echo "make migrate      Apply PostgreSQL schema changes"
 	@echo "make seed         Create the initial organizer configuration"
 	@echo "make test         Run backend and frontend tests"
-	@echo "make lint         Check Go, frontend and TypeSpec"
+	@echo "make lint         Check Go, frontend, TypeSpec and generated artifacts"
 	@echo "make format       Format Go, frontend and TypeSpec source files"
 	@echo "make build        Build backend, frontend, OpenAPI and client SDK"
 	@echo "make generate     Generate OpenAPI, the frontend SDK and Go server package"
 	@echo "make generate-client  Generate the frontend SDK from TypeSpec"
 	@echo "make generate-server  Generate the Go server package from TypeSpec"
 	@echo "make lint-server      Check the generated Go server package for drift"
-	@echo "make smoke        Start PostgreSQL and smoke-test production builds"
+	@echo "make container-build  Build the production application image"
+	@echo "make smoke        Smoke-test the containerized production application"
 	@echo "make check        Run lint, tests, builds and the smoke test"
 	@echo "make db-down      Stop PostgreSQL, preserving its data volume"
 
-setup: install tools
+setup: install tools browser
 
 install:
 	cd backend && go mod download
@@ -37,6 +41,13 @@ install:
 	npm --prefix frontend ci
 
 tools: $(GOLANGCI)
+
+browser:
+ifeq ($(shell uname -s),Linux)
+	npm --prefix frontend exec -- playwright install --with-deps chromium
+else
+	npm --prefix frontend exec -- playwright install chromium
+endif
 
 $(GOLANGCI):
 	mkdir -p .bin/$(GOLANGCI_VERSION)
@@ -75,7 +86,7 @@ test-integration: db-up
 test-frontend: lint-client
 	npm --prefix frontend test
 
-lint: lint-backend lint-frontend lint-typespec lint-client lint-server
+lint: lint-backend lint-frontend lint-typespec lint-openapi lint-client lint-server
 	node --check scripts/smoke.mjs
 	node --check scripts/check-client-sdk.mjs
 	node --check scripts/generate-server.mjs
@@ -90,6 +101,13 @@ lint-frontend: lint-client
 
 lint-typespec:
 	npm --prefix api run check
+
+lint-openapi: build-typespec
+	@git ls-files --error-unmatch api/tsp-output/openapi.yaml >/dev/null 2>&1 && \
+		git diff --quiet -- api/tsp-output/openapi.yaml || { \
+		echo "Generated OpenAPI is out of date. Run 'make build-typespec' and commit api/tsp-output/openapi.yaml."; \
+		exit 1; \
+	}
 
 lint-client: build-typespec
 	node scripts/check-client-sdk.mjs
@@ -122,7 +140,16 @@ generate-client: build-typespec
 generate-server: build-typespec
 	node scripts/generate-server.mjs --write
 
-smoke: db-up seed build
-	node scripts/smoke.mjs
+container-build:
+	docker build --target application -t calendar-of-calls:local .
+
+smoke:
+	@set -eu; \
+	cleanup() { POSTGRES_PORT=$(SMOKE_POSTGRES_PORT) APP_PORT=$(SMOKE_APP_PORT) docker compose -p $(SMOKE_PROJECT) down --volumes --remove-orphans; }; \
+	trap cleanup EXIT INT TERM; \
+	cleanup; \
+	POSTGRES_PORT=$(SMOKE_POSTGRES_PORT) APP_PORT=$(SMOKE_APP_PORT) docker compose -p $(SMOKE_PROJECT) up -d --build --wait app; \
+	SMOKE_BASE_URL=http://127.0.0.1:$(SMOKE_APP_PORT) node scripts/smoke.mjs; \
+	E2E_BASE_URL=http://127.0.0.1:$(SMOKE_APP_PORT) npm --prefix frontend run test:e2e
 
 check: lint test test-integration smoke

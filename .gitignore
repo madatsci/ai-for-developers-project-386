@@ -4,5 +4,7 @@ node_modules/
 dist/
 tsp-output/
 coverage/
+test-results/
+playwright-report/
 *.log
 .DS_Store

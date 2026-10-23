@@ -49,19 +49,28 @@ func run() error {
 	if addr == "" {
 		addr = "127.0.0.1:8080"
 	}
+	handler := httpapi.NewHandler(
+		pool.Ping,
+		httpapi.HandlerServices{
+			PublicCallTypes:   httpapi.NewPublicCallTypesService(pool),
+			PublicCalls:       httpapi.NewPublicCallsService(pool),
+			AdminCallTypes:    httpapi.NewAdminCallTypesService(pool),
+			AdminCalls:        httpapi.NewAdminCallsService(pool),
+			AdminSchedules:    httpapi.NewAdminSchedulesService(pool),
+			AdminWorkingHours: httpapi.NewAdminWorkingHoursService(pool),
+		},
+	)
+	applicationHandler := handler
+	if staticDir := os.Getenv("STATIC_DIR"); staticDir != "" {
+		applicationHandler, err = httpapi.NewApplicationHandler(handler, staticDir)
+		if err != nil {
+			return fmt.Errorf("configure frontend: %w", err)
+		}
+	}
+
 	server := &http.Server{
-		Addr: addr,
-		Handler: httpapi.NewHandler(
-			pool.Ping,
-			httpapi.HandlerServices{
-				PublicCallTypes:   httpapi.NewPublicCallTypesService(pool),
-				PublicCalls:       httpapi.NewPublicCallsService(pool),
-				AdminCallTypes:    httpapi.NewAdminCallTypesService(pool),
-				AdminCalls:        httpapi.NewAdminCallsService(pool),
-				AdminSchedules:    httpapi.NewAdminSchedulesService(pool),
-				AdminWorkingHours: httpapi.NewAdminWorkingHoursService(pool),
-			},
-		),
+		Addr:              addr,
+		Handler:           applicationHandler,
 		ReadHeaderTimeout: 5 * time.Second,
 		WriteTimeout:      10 * time.Second,
 		IdleTimeout:       60 * time.Second,
