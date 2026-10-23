@@ -289,6 +289,7 @@ func newIntegrationHandler(
 		PublicCallTypes:   publicCallTypes,
 		PublicCalls:       publicCalls,
 		AdminCallTypes:    NewAdminCallTypesService(pool),
+		AdminCalls:        NewAdminCallsService(pool),
 		AdminSchedules:    NewAdminSchedulesService(pool),
 		AdminWorkingHours: NewAdminWorkingHoursService(pool),
 	})

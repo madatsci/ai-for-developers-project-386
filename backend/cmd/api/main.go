@@ -57,6 +57,7 @@ func run() error {
 				PublicCallTypes:   httpapi.NewPublicCallTypesService(pool),
 				PublicCalls:       httpapi.NewPublicCallsService(pool),
 				AdminCallTypes:    httpapi.NewAdminCallTypesService(pool),
+				AdminCalls:        httpapi.NewAdminCallsService(pool),
 				AdminSchedules:    httpapi.NewAdminSchedulesService(pool),
 				AdminWorkingHours: httpapi.NewAdminWorkingHoursService(pool),
 			},
