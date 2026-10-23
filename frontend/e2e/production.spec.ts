@@ -6,21 +6,52 @@ test.describe.serial('production acceptance', () => {
     await page.getByRole('link', { name: /Звонок на 15 минут/ }).click()
 
     await expect(page.locator('[data-availability-day]')).toHaveCount(14)
-    await page.locator('[data-slot]').first().click()
+    const firstDayWithSlots = page
+      .locator('[data-availability-day]')
+      .filter({ has: page.locator('[data-slot]') })
+      .first()
+    const selectedSlot = firstDayWithSlots.locator('[data-slot]').last()
+    const selectedSlotLabel = await selectedSlot.textContent()
+    await selectedSlot.click()
     await page.getByLabel('Имя').fill('Посетитель E2E')
     await page.getByLabel('Email').fill('visitor.e2e@example.com')
     await page.getByLabel('Дополнительная информация').fill('Публичный production E2E')
     await page.getByRole('button', { name: 'Забронировать звонок' }).click()
 
     await expect(page.locator('[data-confirmation]')).toContainText('Звонок забронирован')
+    await expect(page.locator('[data-confirmation]')).toContainText('Звонок на 15 минут')
+    await expect(page.locator('[data-confirmation]')).toContainText('Посетитель E2E')
     await expect(page.locator('[data-confirmation]')).toContainText('visitor.e2e@example.com')
+    await expect(page.locator('[data-confirmation]')).toContainText('Публичный production E2E')
+    await expect(page.locator('[data-confirmation]')).toContainText(selectedSlotLabel!)
+
+    const persistedCallsResponse = await page.request.get(
+      '/api/v1/admin/calls?period=upcoming&q=visitor.e2e',
+    )
+    expect(persistedCallsResponse.ok()).toBe(true)
+    const persistedCalls = (await persistedCallsResponse.json()) as {
+      items: Array<{
+        call_type_name: string
+        visitor_name: string
+        visitor_email: string
+        visitor_notes: string | null
+      }>
+    }
+    expect(persistedCalls.items).toEqual([
+      expect.objectContaining({
+        call_type_name: 'Звонок на 15 минут',
+        visitor_name: 'Посетитель E2E',
+        visitor_email: 'visitor.e2e@example.com',
+        visitor_notes: 'Публичный production E2E',
+      }),
+    ])
 
     await page.goto('/admin/calls')
     await page.getByPlaceholder('Поиск по имени, email или комментарию').fill('visitor.e2e')
     await expect(page.getByText('visitor.e2e@example.com').first()).toBeVisible()
   })
 
-  test('admin changes availability and a call type before another public booking', async ({
+  test('organizer changes working hours, schedule and call type before public booking', async ({
     page,
   }) => {
     await page.goto('/admin/working-hours')

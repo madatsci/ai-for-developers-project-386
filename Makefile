@@ -13,7 +13,7 @@ SMOKE_PROJECT ?= calendar-smoke
 GOLANGCI_VERSION := v2.15.0
 GOLANGCI := $(CURDIR)/.bin/$(GOLANGCI_VERSION)/golangci-lint
 
-.PHONY: help setup install tools browser db-up db-down migrate seed dev dev-backend dev-frontend test test-backend test-integration test-frontend lint lint-backend lint-frontend lint-typespec lint-client lint-server format build build-backend build-frontend build-typespec generate generate-client generate-server container-build smoke check
+.PHONY: help setup install tools browser db-up db-down migrate seed dev dev-backend dev-frontend test test-backend test-integration test-frontend lint lint-backend lint-frontend lint-typespec lint-openapi lint-client lint-server format build build-backend build-frontend build-typespec generate generate-client generate-server container-build smoke check
 
 help:
 	@echo "make setup        Install dependencies, Chromium and the pinned Go linter"
@@ -21,7 +21,7 @@ help:
 	@echo "make migrate      Apply PostgreSQL schema changes"
 	@echo "make seed         Create the initial organizer configuration"
 	@echo "make test         Run backend and frontend tests"
-	@echo "make lint         Check Go, frontend and TypeSpec"
+	@echo "make lint         Check Go, frontend, TypeSpec and generated artifacts"
 	@echo "make format       Format Go, frontend and TypeSpec source files"
 	@echo "make build        Build backend, frontend, OpenAPI and client SDK"
 	@echo "make generate     Generate OpenAPI, the frontend SDK and Go server package"
@@ -86,7 +86,7 @@ test-integration: db-up
 test-frontend: lint-client
 	npm --prefix frontend test
 
-lint: lint-backend lint-frontend lint-typespec lint-client lint-server
+lint: lint-backend lint-frontend lint-typespec lint-openapi lint-client lint-server
 	node --check scripts/smoke.mjs
 	node --check scripts/check-client-sdk.mjs
 	node --check scripts/generate-server.mjs
@@ -101,6 +101,12 @@ lint-frontend: lint-client
 
 lint-typespec:
 	npm --prefix api run check
+
+lint-openapi: build-typespec
+	@git diff --quiet -- api/tsp-output/openapi.yaml || { \
+		echo "Generated OpenAPI is out of date. Run 'make build-typespec' and commit api/tsp-output/openapi.yaml."; \
+		exit 1; \
+	}
 
 lint-client: build-typespec
 	node scripts/check-client-sdk.mjs
