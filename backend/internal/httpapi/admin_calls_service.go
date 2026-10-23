@@ -65,14 +65,14 @@ func (s adminCallsService) ListAdminCalls(
 		return validationResponse(fieldErrors), nil
 	}
 
-	snapshotCutoff := s.now()
+	snapshotCutoff := s.now().Truncate(time.Second)
 	var pageCursor *adminCallsCursor
 	if cursorValue != "" {
 		decoded, err := decodeAdminCallsCursor(cursorValue)
 		if err != nil || decoded.Period != string(period) || decoded.CallTypeID != callTypeID || decoded.Query != queryKey {
 			return invalidAdminCallsCursorResponse(), nil
 		}
-		snapshotCutoff, err = time.Parse(time.RFC3339Nano, decoded.AsOf)
+		snapshotCutoff, err = parseAdminCallsSnapshot(decoded.AsOf)
 		if err != nil {
 			return invalidAdminCallsCursorResponse(), nil
 		}
@@ -95,9 +95,9 @@ func (s adminCallsService) ListAdminCalls(
 		args = append(args, queryKey)
 		placeholder := fmt.Sprintf("$%d", len(args))
 		conditions = append(conditions, "("+
-			"strpos(lower(visitor_name), "+placeholder+") > 0 OR "+
-			"strpos(lower(visitor_email), "+placeholder+") > 0 OR "+
-			"strpos(lower(COALESCE(visitor_notes, '')), "+placeholder+") > 0)")
+			"strpos(normalize(casefold(visitor_name COLLATE \"und-x-icu\"), NFC), "+placeholder+") > 0 OR "+
+			"strpos(normalize(casefold(visitor_email COLLATE \"und-x-icu\"), NFC), "+placeholder+") > 0 OR "+
+			"strpos(normalize(casefold(COALESCE(visitor_notes, '') COLLATE \"und-x-icu\"), NFC), "+placeholder+") > 0)")
 	}
 	if pageCursor != nil {
 		lastStart, err := time.Parse(time.RFC3339, pageCursor.StartsAt)
@@ -156,9 +156,21 @@ func (s adminCallsService) ListAdminCalls(
 		nextCursor = &encoded
 	}
 	return domainResponse(http.StatusOK, generated.AdminCallPage{
-		AsOf:     snapshotCutoff.Truncate(time.Second).In(moscowLocation),
+		AsOf:     snapshotCutoff.In(moscowLocation),
 		Timezone: "Europe/Moscow", Items: items, NextCursor: nextCursor,
 	}), nil
+}
+
+func parseAdminCallsSnapshot(value string) (time.Time, error) {
+	parsed, err := time.Parse(time.RFC3339, value)
+	if err != nil || parsed.Nanosecond() != 0 || parsed.Format(time.RFC3339) != value {
+		return time.Time{}, fmt.Errorf("snapshot is not a whole-second RFC 3339 timestamp")
+	}
+	_, offset := parsed.Zone()
+	if offset != 3*60*60 {
+		return time.Time{}, fmt.Errorf("snapshot is not in Europe/Moscow")
+	}
+	return parsed, nil
 }
 
 func encodeAdminCallsCursor(cursor adminCallsCursor) (string, error) {

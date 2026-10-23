@@ -38,28 +38,21 @@ test.describe.serial('production acceptance', () => {
     await expect(confirmation).toContainText('Публичный production E2E')
     await expect(confirmation).toContainText(selectedSlotLabel!)
 
-    const persistedCallsResponse = await page.request.get(
-      '/api/v1/admin/calls?period=upcoming&q=visitor.e2e',
-    )
-    expect(persistedCallsResponse.ok()).toBe(true)
-    const persistedCalls = (await persistedCallsResponse.json()) as {
-      items: Array<{
-        call_type_name: string
-        duration_minutes: number
-        visitor_name: string
-        visitor_email: string
-        visitor_notes: string | null
-      }>
-    }
-    expect(persistedCalls.items).toEqual([
-      expect.objectContaining({
-        call_type_name: 'Звонок на 15 минут',
-        duration_minutes: 15,
-        visitor_name: 'Посетитель E2E',
-        visitor_email: 'visitor.e2e@example.com',
-        visitor_notes: 'Публичный production E2E',
-      }),
-    ])
+    await expect
+      .poll(async () => {
+        const response = await page.request.get('/api/v1/admin/calls?period=upcoming&q=visitor.e2e')
+        expect(response.ok()).toBe(true)
+        return (await response.json()).items
+      })
+      .toEqual([
+        expect.objectContaining({
+          call_type_name: 'Звонок на 15 минут',
+          duration_minutes: 15,
+          visitor_name: 'Посетитель E2E',
+          visitor_email: 'visitor.e2e@example.com',
+          visitor_notes: 'Публичный production E2E',
+        }),
+      ])
 
     await page.goto('/admin/calls')
     await page.getByPlaceholder('Поиск по имени, email или комментарию').fill('visitor.e2e')
@@ -110,6 +103,14 @@ test.describe.serial('production acceptance', () => {
     await page.getByLabel('Email').fill('admin.e2e@example.com')
     await page.getByRole('button', { name: 'Забронировать звонок' }).click()
     await expect(page.locator('[data-confirmation]')).toContainText('Production E2E обновлён')
+
+    await expect
+      .poll(async () => {
+        const response = await page.request.get('/api/v1/admin/calls?period=upcoming&q=admin.e2e')
+        expect(response.ok()).toBe(true)
+        return ((await response.json()).items as unknown[]).length
+      })
+      .toBe(1)
 
     await page.goto('/admin/calls')
     await page.getByPlaceholder('Поиск по имени, email или комментарию').fill('admin.e2e')
