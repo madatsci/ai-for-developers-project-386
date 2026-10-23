@@ -27,6 +27,11 @@ func TestAdminCallsClassifiesAndOrdersSnapshot(t *testing.T) {
 	if err := storage.Seed(ctx, pool); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
+	// Production rejects overlapping calls. This isolated schema drops the constraint only to
+	// exercise the API's defensive UUID tie-breaker required for equal start timestamps.
+	if _, err := pool.Exec(ctx, `ALTER TABLE calls DROP CONSTRAINT calls_tstzrange_excl`); err != nil {
+		t.Fatalf("drop overlap constraint in ordering fixture: %v", err)
+	}
 	var callTypeID string
 	if err := pool.QueryRow(ctx, `SELECT id FROM call_types WHERE slug = 'zvonok-na-30-minut'`).Scan(&callTypeID); err != nil {
 		t.Fatalf("read call type: %v", err)
@@ -35,8 +40,8 @@ func TestAdminCallsClassifiesAndOrdersSnapshot(t *testing.T) {
 		id, startsAt, name string
 	}{
 		{"018f0000-0000-7000-8000-000000000503", "2026-10-20T11:45:00+03:00", "Текущий"},
-		{"018f0000-0000-7000-8000-000000000501", "2026-10-20T13:00:00+03:00", "Ближайший"},
-		{"018f0000-0000-7000-8000-000000000502", "2026-10-20T14:00:00+03:00", "Следующий"},
+		{"018f0000-0000-7000-8000-000000000502", "2026-10-20T13:00:00+03:00", "Второй при равном начале"},
+		{"018f0000-0000-7000-8000-000000000501", "2026-10-20T13:00:00+03:00", "Первый при равном начале"},
 		{"018f0000-0000-7000-8000-000000000504", "2026-10-20T10:00:00+03:00", "Прошедший"},
 	} {
 		if _, err := pool.Exec(ctx, `
