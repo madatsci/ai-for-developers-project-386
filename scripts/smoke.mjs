@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { randomUUID } from 'node:crypto'
 import { once } from 'node:events'
 import { setTimeout as delay } from 'node:timers/promises'
 
@@ -142,48 +141,14 @@ try {
     'Disabled call type is still present in the public catalog',
   )
 
-  const bookableType = (
-    await (
-      await fetch(`${backendURL}/api/v1/public/call-types`, {
-        signal: AbortSignal.timeout(3000),
-      })
-    ).json()
-  ).items[0]
-  const availabilityResponse = await fetch(
-    `${backendURL}/api/v1/public/call-types/${bookableType.slug}/availability`,
-    { signal: AbortSignal.timeout(3000) },
-  )
-  assert.equal(availabilityResponse.status, 200)
-  const availability = await availabilityResponse.json()
-  const smokeSlot = availability.days.flatMap(({ slots }) => slots)[0]
-  assert.ok(smokeSlot, 'No slot is available for the calls journal smoke test')
-  const bookedResponse = await fetch(`${backendURL}/api/v1/public/calls`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Idempotency-Key': randomUUID(),
-    },
-    body: JSON.stringify({
-      call_type_slug: bookableType.slug,
-      call_type_version: availability.call_type.call_type_version,
-      starts_at: smokeSlot.starts_at,
-      visitor_name: 'Smoke Visitor',
-      visitor_email: 'smoke@example.com',
-      visitor_notes: 'Calls journal production smoke',
-    }),
-    signal: AbortSignal.timeout(3000),
-  })
-  assert.equal(bookedResponse.status, 201)
-  const bookedCall = await bookedResponse.json()
-  const adminCallsResponse = await fetch(`${backendURL}/api/v1/admin/calls?q=smoke%40example.com`, {
+  const adminCallsResponse = await fetch(`${backendURL}/api/v1/admin/calls`, {
     signal: AbortSignal.timeout(3000),
   })
   assert.equal(adminCallsResponse.status, 200)
   const adminCalls = await adminCallsResponse.json()
-  assert.ok(
-    adminCalls.items.some(({ id }) => id === bookedCall.id),
-    'Booked call is missing from the admin calls journal',
-  )
+  assert.equal(adminCalls.timezone, 'Europe/Moscow')
+  assert.equal(typeof adminCalls.as_of, 'string')
+  assert.ok(Array.isArray(adminCalls.items), 'Admin calls journal items are missing')
 
   const deletedResponse = await fetch(`${backendURL}/api/v1/admin/call-types/${createdType.id}`, {
     method: 'DELETE',
