@@ -13,7 +13,7 @@ SMOKE_PROJECT ?= calendar-smoke
 GOLANGCI_VERSION := v2.15.0
 GOLANGCI := $(CURDIR)/.bin/$(GOLANGCI_VERSION)/golangci-lint
 
-.PHONY: help setup install tools browser db-up db-down migrate seed dev dev-backend dev-frontend test test-backend test-integration test-frontend lint lint-backend lint-frontend lint-typespec lint-openapi lint-client lint-server format build build-backend build-frontend build-typespec generate generate-client generate-server container-build smoke check
+.PHONY: help setup install tools browser db-up db-down migrate seed dev dev-backend dev-frontend test test-backend test-integration test-frontend lint lint-backend lint-frontend lint-typespec lint-openapi lint-client lint-server lint-render format build build-backend build-frontend build-typespec generate generate-client generate-server container-build smoke smoke-remote check
 
 help:
 	@echo "make setup        Install dependencies, Chromium and the pinned Go linter"
@@ -30,6 +30,7 @@ help:
 	@echo "make lint-server      Check the generated Go server package for drift"
 	@echo "make container-build  Build the production application image"
 	@echo "make smoke        Smoke-test the containerized production application"
+	@echo "make smoke-remote Smoke-test the deployed application over HTTPS"
 	@echo "make check        Run lint, tests, builds and the smoke test"
 	@echo "make db-down      Stop PostgreSQL, preserving its data volume"
 
@@ -86,7 +87,7 @@ test-integration: db-up
 test-frontend: lint-client
 	npm --prefix frontend test
 
-lint: lint-backend lint-frontend lint-typespec lint-openapi lint-client lint-server
+lint: lint-backend lint-frontend lint-typespec lint-openapi lint-client lint-server lint-render
 	node --check scripts/smoke.mjs
 	node --check scripts/check-client-sdk.mjs
 	node --check scripts/generate-server.mjs
@@ -115,10 +116,14 @@ lint-client: build-typespec
 lint-server: build-typespec
 	node scripts/generate-server.mjs --check
 
+lint-render:
+	cd frontend && npx prettier --check ../render.yaml
+
 format:
 	cd backend && gofmt -w .
 	npm --prefix api run format
 	npm --prefix frontend run format
+	cd frontend && npx prettier --write ../render.yaml
 
 build: build-backend build-frontend build-typespec
 
@@ -151,5 +156,9 @@ smoke:
 	POSTGRES_PORT=$(SMOKE_POSTGRES_PORT) APP_PORT=$(SMOKE_APP_PORT) docker compose -p $(SMOKE_PROJECT) up -d --build --wait app; \
 	SMOKE_BASE_URL=http://127.0.0.1:$(SMOKE_APP_PORT) node scripts/smoke.mjs; \
 	E2E_BASE_URL=http://127.0.0.1:$(SMOKE_APP_PORT) npm --prefix frontend run test:e2e
+
+smoke-remote:
+	@test -n "$(REMOTE_SMOKE_BASE_URL)" || { echo "Set REMOTE_SMOKE_BASE_URL to the deployed HTTPS origin"; exit 2; }
+	SMOKE_BASE_URL="$(REMOTE_SMOKE_BASE_URL)" SMOKE_REQUIRE_HTTPS=1 node scripts/smoke.mjs
 
 check: lint test test-integration smoke

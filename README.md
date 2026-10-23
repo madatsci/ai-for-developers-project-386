@@ -76,6 +76,38 @@ docker compose up --build --wait app
 миграции и идемпотентный seed. PostgreSQL запускается отдельным сервисом Compose.
 Остановка с сохранением данных: `docker compose down`.
 
+### Развёртывание в Render
+
+Корневой [`render.yaml`](render.yaml) описывает бесплатные Render Web Service и
+PostgreSQL в регионе Frankfurt. Render собирает приложение из корневого
+`Dockerfile`, передаёт ему приватный `DATABASE_URL`, проверяет `/api/health` и
+публикует frontend и same-origin `/api` на HTTPS-поддомене `onrender.com`.
+Внешний доступ к PostgreSQL отключён.
+
+В Render создайте Blueprint из этого GitHub-репозитория и выберите ветку с
+`render.yaml`. После слияния изменений постоянной веткой Blueprint должна быть
+`main`. Автодеплой ждёт успешного завершения GitHub CI. Миграции и идемпотентный
+seed выполняются контейнерным entrypoint перед каждым запуском приложения.
+
+Удалённая проверка опубликованного контура:
+
+```bash
+make smoke-remote REMOTE_SMOKE_BASE_URL=https://<service>.onrender.com
+```
+
+Команда требует HTTPS, проверяет frontend, API, соединение с PostgreSQL и seed.
+Первый запуск создаёт реальный звонок в свободном слоте и находит его в журнале
+организатора; повторные запуски находят ту же запись, не занимая новые слоты.
+Звонок намеренно остаётся в базе как доказательство сквозной записи.
+
+Бесплатный web-service может засыпать при отсутствии запросов, поэтому первый
+ответ после простоя бывает медленнее. Бесплатная PostgreSQL истекает через 30
+дней; после этого Render даёт 14 дней на переход на платный план, а затем удаляет
+базу. До истечения срока повторный деплой использует ту же базу и сохраняет
+данные. Для окончательного удаления окружения сначала отключите Blueprint, затем
+отдельно удалите Web Service и PostgreSQL: отключение Blueprint само по себе не
+удаляет управляемые ресурсы.
+
 ## Проверки
 
 | Команда | Что проверяет |
@@ -88,6 +120,7 @@ docker compose up --build --wait app
 | `make lint-server` | Проверяет сгенерированный Go-пакет на дрейф |
 | `make container-build` | Собирает production-образ приложения |
 | `make smoke` | На чистой БД проверяет контейнерный frontend/API и browser E2E |
+| `make smoke-remote` | Проверяет опубликованный HTTPS-контур и сохраняет один smoke-звонок |
 | `make check` | Все проверки: lint, test, build и smoke |
 
 По отдельности доступны `make test-backend`, `make test-frontend`,
@@ -150,6 +183,7 @@ frontend/e2e/            browser E2E production-контура
 scripts/smoke.mjs         проверка запуска приложения
 Dockerfile               multi-stage production-образ
 compose.yaml             приложение и PostgreSQL
+render.yaml              Render Blueprint для приложения и PostgreSQL
 .github/workflows/ci.yml  автоматические проверки
 ```
 

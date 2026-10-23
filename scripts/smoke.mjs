@@ -1,7 +1,43 @@
 import assert from 'node:assert/strict'
 import { setTimeout as delay } from 'node:timers/promises'
 
-const baseURL = process.env.SMOKE_BASE_URL ?? 'http://127.0.0.1:18080'
+const configuredBaseURL = process.env.SMOKE_BASE_URL ?? 'http://127.0.0.1:18080'
+const parsedBaseURL = new URL(configuredBaseURL)
+const baseURL = parsedBaseURL.origin
+
+assert.equal(parsedBaseURL.username, '', 'Smoke URL must not contain credentials')
+assert.equal(parsedBaseURL.password, '', 'Smoke URL must not contain credentials')
+if (process.env.SMOKE_REQUIRE_HTTPS === '1') {
+  assert.equal(parsedBaseURL.protocol, 'https:', 'Remote smoke requires an HTTPS URL')
+}
+
+const smokeCall = {
+  idempotencyKey: 'ca11da7a-9b3d-4f4a-8cc7-e67a669cc032',
+  visitorName: 'Посетитель remote smoke',
+  visitorEmail: 'remote-smoke@example.com',
+  visitorNotes: 'Проверка опубликованного production-контура',
+}
+
+function isSmokeCall(call) {
+  return (
+    call.visitor_name === smokeCall.visitorName &&
+    call.visitor_email === smokeCall.visitorEmail &&
+    call.visitor_notes === smokeCall.visitorNotes
+  )
+}
+
+async function findPersistedSmokeCall() {
+  for (const period of ['upcoming', 'past']) {
+    const response = await fetch(
+      `${baseURL}/api/v1/admin/calls?period=${period}&q=${encodeURIComponent(smokeCall.visitorEmail)}`,
+      { signal: AbortSignal.timeout(3000) },
+    )
+    assert.equal(response.status, 200)
+    const match = (await response.json()).items.find(isSmokeCall)
+    if (match) return match
+  }
+  return undefined
+}
 
 async function waitFor(url) {
   for (let attempt = 0; attempt < 60; attempt++) {
@@ -41,6 +77,51 @@ try {
       `Seeded call type is missing: ${expected.name}`,
     )
   }
+
+  const seededCallType = publicCallTypes.find(
+    ({ name, duration_minutes }) => name === 'Звонок на 15 минут' && duration_minutes === 15,
+  )
+  assert.ok(seededCallType, 'Seeded 15-minute call type is missing')
+
+  let persistedSmokeCall = await findPersistedSmokeCall()
+  if (!persistedSmokeCall) {
+    const availabilityResponse = await fetch(
+      `${baseURL}/api/v1/public/call-types/${seededCallType.slug}/availability`,
+      { signal: AbortSignal.timeout(3000) },
+    )
+    assert.equal(availabilityResponse.status, 200)
+    const availability = await availabilityResponse.json()
+    const availableSlot = availability.days.flatMap(({ slots }) => slots)[0]
+    assert.ok(availableSlot?.starts_at, 'Seeded call type has no available slot')
+
+    const bookingResponse = await fetch(`${baseURL}/api/v1/public/calls`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': smokeCall.idempotencyKey,
+      },
+      body: JSON.stringify({
+        call_type_slug: availability.call_type.slug,
+        call_type_version: availability.call_type.call_type_version,
+        starts_at: availableSlot.starts_at,
+        visitor_name: smokeCall.visitorName,
+        visitor_email: smokeCall.visitorEmail,
+        visitor_notes: smokeCall.visitorNotes,
+      }),
+      signal: AbortSignal.timeout(3000),
+    })
+    assert.equal(bookingResponse.status, 201)
+    const createdCall = await bookingResponse.json()
+    assert.equal(createdCall.visitor_email, smokeCall.visitorEmail)
+
+    persistedSmokeCall = await findPersistedSmokeCall()
+    assert.equal(
+      persistedSmokeCall?.id,
+      createdCall.id,
+      'Created smoke call is missing from the organizer journal',
+    )
+  }
+  assert.ok(persistedSmokeCall, 'Persisted smoke call is missing from the organizer journal')
 
   const schedulesResponse = await fetch(`${baseURL}/api/v1/admin/schedules`, {
     signal: AbortSignal.timeout(3000),
@@ -139,7 +220,9 @@ try {
   })
   assert.equal(proxied.status, 200)
   assert.deepEqual(await proxied.json(), { status: 'ok' })
-  console.log('Smoke test passed: frontend assets → same-origin Go API → PostgreSQL')
+  console.log(
+    'Smoke test passed: frontend assets → same-origin Go API → PostgreSQL → persisted call',
+  )
 } catch (error) {
   console.error(error)
   process.exitCode = 1
