@@ -8,6 +8,7 @@
 Учебный проект Хекслета: https://ru.hexlet.io/programs/ai-for-developers
 Как это должно работать: https://files.hexlet.app/a/2ipc5m
 Развёрнутое приложение: https://calendar-of-calls.onrender.com
+Административный интерфейс: https://calendar-of-calls.onrender.com/admin/calls
 
 ## Стек
 
