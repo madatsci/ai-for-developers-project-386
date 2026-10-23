@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { onBeforeRouteLeave, RouterLink } from 'vue-router'
+import { onBeforeRouteLeave, RouterLink, useRoute } from 'vue-router'
 import AdminSidebar from '@/components/AdminSidebar.vue'
 import {
   createAdminCallType,
@@ -41,6 +41,7 @@ const validationAttempted = ref(false)
 const fieldErrors = ref<Record<string, string>>({})
 const actionError = ref('')
 const notice = ref('')
+const route = useRoute()
 
 const selectedCallType = computed(
   () => callTypes.value.find((callType) => callType.id === selectedId.value) ?? null,
@@ -113,7 +114,12 @@ async function loadCallTypes() {
     schedules.value = [...scheduleResult.data.items].sort((left, right) =>
       left.name.localeCompare(right.name, 'ru'),
     )
-    if (callTypes.value[0]) acceptCallType(callTypes.value[0])
+    const requestedID = Array.isArray(route.query.call_type_id)
+      ? route.query.call_type_id[0]
+      : route.query.call_type_id
+    const requestedCallType = callTypes.value.find((callType) => callType.id === requestedID)
+    const initialCallType = requestedCallType ?? callTypes.value[0]
+    if (initialCallType) acceptCallType(initialCallType, requestedCallType !== undefined)
   } catch {
     loadFailed.value = true
   } finally {

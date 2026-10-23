@@ -317,7 +317,7 @@ export type LastScheduleResponse = NoStoreHeaders & {
 export type LocalTime = string
 
 /**
- * An RFC 3339 timestamp normalized to Europe/Moscow, optionally with fractional seconds.
+ * An RFC 3339 timestamp normalized to Europe/Moscow without fractional seconds.
  */
 export type MoscowDateTime = string
 

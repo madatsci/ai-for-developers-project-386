@@ -28,9 +28,9 @@ scalar ResourceId extends string;
 @pattern("^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][05]:00(?:Z|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])$")
 scalar RequestSlotDateTime extends string;
 
-/** An RFC 3339 timestamp normalized to Europe/Moscow, optionally with fractional seconds. */
+/** An RFC 3339 timestamp normalized to Europe/Moscow without fractional seconds. */
 @format("date-time")
-@pattern("^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\\.[0-9]+)?\\+03:00$")
+@pattern("^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]\\+03:00$")
 scalar MoscowDateTime extends string;
 
 /** A five-minute-grid RFC 3339 timestamp normalized to Europe/Moscow. */

@@ -6,6 +6,7 @@ const {
   deleteAdminCallType,
   listAdminCallTypes,
   listAdminSchedules,
+  route,
   updateAdminCallType,
   routeLeave,
 } = vi.hoisted(() => ({
@@ -13,6 +14,7 @@ const {
   deleteAdminCallType: vi.fn(),
   listAdminCallTypes: vi.fn(),
   listAdminSchedules: vi.fn(),
+  route: { query: {} as Record<string, string> },
   updateAdminCallType: vi.fn(),
   routeLeave: { guard: undefined as undefined | (() => boolean) },
 }))
@@ -29,6 +31,7 @@ vi.mock('vue-router', async (importOriginal) => {
   const actual = await importOriginal<typeof import('vue-router')>()
   return {
     ...actual,
+    useRoute: () => route,
     onBeforeRouteLeave: (guard: () => boolean) => {
       routeLeave.guard = guard
     },
@@ -76,6 +79,7 @@ describe('AdminCallTypesView', () => {
     listAdminCallTypes.mockReset()
     listAdminSchedules.mockReset()
     updateAdminCallType.mockReset()
+    route.query = {}
     routeLeave.guard = undefined
     listAdminCallTypes.mockResolvedValue({ data: { items: [structuredClone(callType)] } })
     listAdminSchedules.mockResolvedValue({ data: { items: [structuredClone(schedule)] } })
@@ -137,6 +141,30 @@ describe('AdminCallTypesView', () => {
     await wrapper.get('[data-mobile-call-type-back]').trigger('click')
     expect(list.classes()).toContain('block')
     expect(form.classes()).toContain('hidden')
+  })
+
+  it('opens the call type editor selected by the route', async () => {
+    const selectedCallType = {
+      ...structuredClone(callType),
+      id: '018f0000-0000-7000-8000-000000000202',
+      slug: 'dlinnaya-konsultatsiya',
+      name: 'Длинная консультация',
+      duration_minutes: 60,
+    }
+    route.query = { call_type_id: selectedCallType.id }
+    listAdminCallTypes.mockResolvedValue({
+      data: { items: [structuredClone(callType), selectedCallType] },
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.get('input[name="call-type-name"]').element).toHaveProperty(
+      'value',
+      'Длинная консультация',
+    )
+    expect(wrapper.get('[aria-label="Список типов звонков"]').classes()).toContain('hidden')
+    expect(wrapper.get('form').classes()).toContain('block')
   })
 
   it('updates with If-Match, preserves edits on conflict, and protects dirty navigation', async () => {

@@ -18,8 +18,8 @@ import (
 
 type AdminCallPage struct {
 
-	// An RFC 3339 timestamp normalized to Europe/Moscow, optionally with fractional seconds.
-	AsOf time.Time `json:"as_of" validate:"regexp=^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\\.[0-9]+)?\\+03:00$"`
+	// An RFC 3339 timestamp normalized to Europe/Moscow without fractional seconds.
+	AsOf time.Time `json:"as_of" validate:"regexp=^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]\\+03:00$"`
 
 	Timezone string `json:"timezone"`
 

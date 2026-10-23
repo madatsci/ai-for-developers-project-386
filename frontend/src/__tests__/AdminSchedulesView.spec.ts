@@ -99,6 +99,20 @@ describe('AdminSchedulesView', () => {
     expect(wrapper.text()).toContain('2 типа: Короткий звонок, Длинный звонок')
     expect(wrapper.text()).toContain('Расписание назначено типам звонков')
 
+    const assignmentLinks = wrapper
+      .findAllComponents(RouterLinkStub)
+      .filter((link) => link.attributes('data-assigned-call-type') !== undefined)
+    expect(assignmentLinks.map((link) => link.props('to'))).toEqual([
+      {
+        name: 'admin-call-types',
+        query: { call_type_id: mainSchedule.assigned_call_types[0]!.id },
+      },
+      {
+        name: 'admin-call-types',
+        query: { call_type_id: mainSchedule.assigned_call_types[1]!.id },
+      },
+    ])
+
     await wrapper.get('[data-create-schedule]').trigger('click')
     expect(wrapper.findAll('[data-schedule-day]')).toHaveLength(7)
     expect(wrapper.get('input[name="days.0.intervals.0.start_time"]').element).toHaveProperty(

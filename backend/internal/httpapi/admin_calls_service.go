@@ -65,14 +65,14 @@ func (s adminCallsService) ListAdminCalls(
 		return validationResponse(fieldErrors), nil
 	}
 
-	asOf := s.now()
+	snapshotCutoff := s.now()
 	var pageCursor *adminCallsCursor
 	if cursorValue != "" {
 		decoded, err := decodeAdminCallsCursor(cursorValue)
 		if err != nil || decoded.Period != string(period) || decoded.CallTypeID != callTypeID || decoded.Query != queryKey {
 			return invalidAdminCallsCursorResponse(), nil
 		}
-		asOf, err = time.Parse(time.RFC3339, decoded.AsOf)
+		snapshotCutoff, err = time.Parse(time.RFC3339Nano, decoded.AsOf)
 		if err != nil {
 			return invalidAdminCallsCursorResponse(), nil
 		}
@@ -86,7 +86,7 @@ func (s adminCallsService) ListAdminCalls(
 		direction = "DESC"
 	}
 	conditions := []string{"created_at <= $1", "ends_at " + comparison + " $1"}
-	args := []any{asOf}
+	args := []any{snapshotCutoff}
 	if callTypeID != "" {
 		args = append(args, callTypeID)
 		conditions = append(conditions, fmt.Sprintf("call_type_id = $%d", len(args)))
@@ -147,7 +147,7 @@ func (s adminCallsService) ListAdminCalls(
 		items = items[:50]
 		last := items[len(items)-1]
 		encoded, err := encodeAdminCallsCursor(adminCallsCursor{
-			AsOf: asOf.Format(time.RFC3339), Period: string(period), CallTypeID: callTypeID,
+			AsOf: snapshotCutoff.Format(time.RFC3339Nano), Period: string(period), CallTypeID: callTypeID,
 			Query: queryKey, StartsAt: last.StartsAt.Format(time.RFC3339), ID: last.Id,
 		})
 		if err != nil {
@@ -156,7 +156,8 @@ func (s adminCallsService) ListAdminCalls(
 		nextCursor = &encoded
 	}
 	return domainResponse(http.StatusOK, generated.AdminCallPage{
-		AsOf: asOf.In(moscowLocation), Timezone: "Europe/Moscow", Items: items, NextCursor: nextCursor,
+		AsOf:     snapshotCutoff.Truncate(time.Second).In(moscowLocation),
+		Timezone: "Europe/Moscow", Items: items, NextCursor: nextCursor,
 	}), nil
 }
 

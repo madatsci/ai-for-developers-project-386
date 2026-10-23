@@ -118,6 +118,33 @@ func TestPublicCallTypeReadsActiveAndDisabledTypesByStableSlug(t *testing.T) {
 	}
 }
 
+func TestPublicCallTypeReadsRejectUnknownQueryParameters(t *testing.T) {
+	pool := catalogTestPool(t)
+	ctx := context.Background()
+	if err := storage.Migrate(ctx, pool); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	if err := storage.Seed(ctx, pool); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	handler := newIntegrationHandler(pool, NewPublicCallTypesService(pool), NewPublicCallsService(pool))
+	for _, requestPath := range []string{
+		"/api/v1/public/call-types?unexpected=1",
+		"/api/v1/public/call-types/zvonok-na-30-minut?unexpected=1",
+		"/api/v1/public/call-types/zvonok-na-30-minut/availability?unexpected=1",
+	} {
+		t.Run(requestPath, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, requestPath, nil))
+			if response.Code != http.StatusUnprocessableEntity ||
+				!strings.Contains(response.Body.String(), `"path":"query.unexpected"`) {
+				t.Errorf("status=%d body=%s, want 422 query.unexpected", response.Code, response.Body.String())
+			}
+		})
+	}
+}
+
 func TestPublicCallTypeAvailabilityUsesMoscowWindowAndAllExistingCalls(t *testing.T) {
 	pool := catalogTestPool(t)
 	ctx := context.Background()
