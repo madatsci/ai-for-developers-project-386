@@ -10,6 +10,16 @@ test.describe.serial('production acceptance', () => {
       .locator('[data-availability-day]')
       .filter({ has: page.locator('[data-slot]') })
       .first()
+    const selectedDate = (await firstDayWithSlots
+      .locator('[data-availability-date]')
+      .textContent())!.trim()
+    const selectedDateLabel = new Intl.DateTimeFormat('ru-RU', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'Europe/Moscow',
+    }).format(new Date(`${selectedDate}T12:00:00+03:00`))
     const selectedSlot = firstDayWithSlots.locator('[data-slot]').last()
     const selectedSlotLabel = await selectedSlot.textContent()
     await selectedSlot.click()
@@ -18,12 +28,15 @@ test.describe.serial('production acceptance', () => {
     await page.getByLabel('Дополнительная информация').fill('Публичный production E2E')
     await page.getByRole('button', { name: 'Забронировать звонок' }).click()
 
-    await expect(page.locator('[data-confirmation]')).toContainText('Звонок забронирован')
-    await expect(page.locator('[data-confirmation]')).toContainText('Звонок на 15 минут')
-    await expect(page.locator('[data-confirmation]')).toContainText('Посетитель E2E')
-    await expect(page.locator('[data-confirmation]')).toContainText('visitor.e2e@example.com')
-    await expect(page.locator('[data-confirmation]')).toContainText('Публичный production E2E')
-    await expect(page.locator('[data-confirmation]')).toContainText(selectedSlotLabel!)
+    const confirmation = page.locator('[data-confirmation]')
+    await expect(confirmation).toContainText('Звонок забронирован')
+    await expect(confirmation).toContainText('Звонок на 15 минут')
+    await expect(confirmation).toContainText(selectedDateLabel)
+    await expect(confirmation.getByText('15 минут', { exact: true })).toBeVisible()
+    await expect(confirmation).toContainText('Посетитель E2E')
+    await expect(confirmation).toContainText('visitor.e2e@example.com')
+    await expect(confirmation).toContainText('Публичный production E2E')
+    await expect(confirmation).toContainText(selectedSlotLabel!)
 
     const persistedCallsResponse = await page.request.get(
       '/api/v1/admin/calls?period=upcoming&q=visitor.e2e',
@@ -32,6 +45,7 @@ test.describe.serial('production acceptance', () => {
     const persistedCalls = (await persistedCallsResponse.json()) as {
       items: Array<{
         call_type_name: string
+        duration_minutes: number
         visitor_name: string
         visitor_email: string
         visitor_notes: string | null
@@ -40,6 +54,7 @@ test.describe.serial('production acceptance', () => {
     expect(persistedCalls.items).toEqual([
       expect.objectContaining({
         call_type_name: 'Звонок на 15 минут',
+        duration_minutes: 15,
         visitor_name: 'Посетитель E2E',
         visitor_email: 'visitor.e2e@example.com',
         visitor_notes: 'Публичный production E2E',

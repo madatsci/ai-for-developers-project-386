@@ -113,8 +113,9 @@ Go-сборка и тесты используют закоммиченный п
 
 `make generate-client` также сначала генерирует OpenAPI из TypeSpec, затем
 обновляет Fetch SDK в `frontend/src/api/generated/`. CI проверяет соответствие
-контракту обоих generated-пакетов. Промежуточный
-`api/tsp-output/openapi.yaml` не коммитится и не копируется в backend.
+контракту OpenAPI и обоих generated-пакетов. Промежуточный
+`api/tsp-output/openapi.yaml` коммитится как проверяемый generated-артефакт, но
+вручную не редактируется и не копируется в backend.
 
 Сгенерированный роутер использует `chi` как `http.Handler` внутри стандартного
 `http.Server`. Реализованные controllers подключены к рукописным сервисам; сам

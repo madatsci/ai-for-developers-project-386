@@ -103,7 +103,8 @@ lint-typespec:
 	npm --prefix api run check
 
 lint-openapi: build-typespec
-	@git diff --quiet -- api/tsp-output/openapi.yaml || { \
+	@git ls-files --error-unmatch api/tsp-output/openapi.yaml >/dev/null 2>&1 && \
+		git diff --quiet -- api/tsp-output/openapi.yaml || { \
 		echo "Generated OpenAPI is out of date. Run 'make build-typespec' and commit api/tsp-output/openapi.yaml."; \
 		exit 1; \
 	}
@@ -146,6 +147,7 @@ smoke:
 	@set -eu; \
 	cleanup() { POSTGRES_PORT=$(SMOKE_POSTGRES_PORT) APP_PORT=$(SMOKE_APP_PORT) docker compose -p $(SMOKE_PROJECT) down --volumes --remove-orphans; }; \
 	trap cleanup EXIT INT TERM; \
+	cleanup; \
 	POSTGRES_PORT=$(SMOKE_POSTGRES_PORT) APP_PORT=$(SMOKE_APP_PORT) docker compose -p $(SMOKE_PROJECT) up -d --build --wait app; \
 	SMOKE_BASE_URL=http://127.0.0.1:$(SMOKE_APP_PORT) node scripts/smoke.mjs; \
 	E2E_BASE_URL=http://127.0.0.1:$(SMOKE_APP_PORT) npm --prefix frontend run test:e2e
