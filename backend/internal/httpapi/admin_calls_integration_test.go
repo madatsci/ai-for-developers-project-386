@@ -49,10 +49,22 @@ func TestAdminCallsClassifiesAndOrdersSnapshot(t *testing.T) {
 				id, call_type_id, call_type_name, duration_minutes, starts_at,
 				visitor_name, visitor_email, created_at
 			)
-			VALUES ($1, $2, 'Историческое название', 30, $3, $4, 'visitor@example.com', '2026-10-20T12:00:00.250+03:00')
+			VALUES ($1, $2, 'Историческое название', 30, $3, $4, 'visitor@example.com', '2026-10-20T12:00:00+03:00')
 		`, call.id, callTypeID, call.startsAt, call.name); err != nil {
 			t.Fatalf("insert call %s: %v", call.id, err)
 		}
+	}
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO calls (
+			id, call_type_id, call_type_name, duration_minutes, starts_at,
+			visitor_name, visitor_email, created_at
+		) VALUES (
+			'018f0000-0000-7000-8000-000000000505', $1, 'Историческое название', 30,
+			'2026-10-20T14:00:00+03:00', 'Создан после публичного снимка',
+			'visitor@example.com', '2026-10-20T12:00:00.250+03:00'
+		)
+	`, callTypeID); err != nil {
+		t.Fatalf("insert call after public snapshot: %v", err)
 	}
 
 	moscow := time.FixedZone("Europe/Moscow", 3*60*60)
@@ -211,6 +223,26 @@ func TestAdminCallsFiltersAndPaginatesStableSnapshot(t *testing.T) {
 	}
 	if len(filteredPage.Items) != 1 || filteredPage.Items[0].VisitorName != "Анна Смирнова" {
 		t.Errorf("filtered items = %+v", filteredPage.Items)
+	}
+
+	if _, err := pool.Exec(ctx, `
+		UPDATE calls
+		SET visitor_name = 'Straße'
+		WHERE id = '018f0000-0000-7000-8000-000000000600'
+	`); err != nil {
+		t.Fatalf("update Unicode search fixture: %v", err)
+	}
+	unicodeSearch := httptest.NewRecorder()
+	handler.ServeHTTP(unicodeSearch, httptest.NewRequest(http.MethodGet, "/api/v1/admin/calls?q=STRASSE", nil))
+	if unicodeSearch.Code != http.StatusOK {
+		t.Fatalf("Unicode search status = %d, want 200; body=%s", unicodeSearch.Code, unicodeSearch.Body.String())
+	}
+	var unicodePage generated.AdminCallPage
+	if err := json.Unmarshal(unicodeSearch.Body.Bytes(), &unicodePage); err != nil {
+		t.Fatalf("decode Unicode search: %v", err)
+	}
+	if len(unicodePage.Items) != 1 || unicodePage.Items[0].VisitorName != "Straße" {
+		t.Errorf("Unicode search items = %+v", unicodePage.Items)
 	}
 
 	for name, requestURL := range map[string]string{

@@ -65,7 +65,7 @@ func (s adminCallsService) ListAdminCalls(
 		return validationResponse(fieldErrors), nil
 	}
 
-	snapshotCutoff := s.now()
+	snapshotCutoff := s.now().Truncate(time.Second)
 	var pageCursor *adminCallsCursor
 	if cursorValue != "" {
 		decoded, err := decodeAdminCallsCursor(cursorValue)
@@ -95,9 +95,9 @@ func (s adminCallsService) ListAdminCalls(
 		args = append(args, queryKey)
 		placeholder := fmt.Sprintf("$%d", len(args))
 		conditions = append(conditions, "("+
-			"strpos(lower(visitor_name), "+placeholder+") > 0 OR "+
-			"strpos(lower(visitor_email), "+placeholder+") > 0 OR "+
-			"strpos(lower(COALESCE(visitor_notes, '')), "+placeholder+") > 0)")
+			"strpos(casefold(visitor_name COLLATE \"und-x-icu\"), "+placeholder+") > 0 OR "+
+			"strpos(casefold(visitor_email COLLATE \"und-x-icu\"), "+placeholder+") > 0 OR "+
+			"strpos(casefold(COALESCE(visitor_notes, '') COLLATE \"und-x-icu\"), "+placeholder+") > 0)")
 	}
 	if pageCursor != nil {
 		lastStart, err := time.Parse(time.RFC3339, pageCursor.StartsAt)
@@ -156,7 +156,7 @@ func (s adminCallsService) ListAdminCalls(
 		nextCursor = &encoded
 	}
 	return domainResponse(http.StatusOK, generated.AdminCallPage{
-		AsOf:     snapshotCutoff.Truncate(time.Second).In(moscowLocation),
+		AsOf:     snapshotCutoff.In(moscowLocation),
 		Timezone: "Europe/Moscow", Items: items, NextCursor: nextCursor,
 	}), nil
 }

@@ -39,6 +39,15 @@ async function findPersistedSmokeCall() {
   return undefined
 }
 
+async function waitForPersistedSmokeCall() {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const call = await findPersistedSmokeCall()
+    if (call) return call
+    await delay(250)
+  }
+  return undefined
+}
+
 async function waitFor(url) {
   for (let attempt = 0; attempt < 60; attempt++) {
     try {
@@ -114,7 +123,7 @@ try {
     const createdCall = await bookingResponse.json()
     assert.equal(createdCall.visitor_email, smokeCall.visitorEmail)
 
-    persistedSmokeCall = await findPersistedSmokeCall()
+    persistedSmokeCall = await waitForPersistedSmokeCall()
     assert.equal(
       persistedSmokeCall?.id,
       createdCall.id,
