@@ -473,14 +473,19 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
                     Назначенные типы
                   </p>
                   <div class="mt-2 flex flex-wrap gap-2">
-                    <span
+                    <RouterLink
                       v-for="callType in selectedSchedule.assigned_call_types"
                       :key="callType.id"
+                      :to="{
+                        name: 'admin-call-types',
+                        query: { call_type_id: callType.id },
+                      }"
+                      :data-assigned-call-type="callType.id"
                       class="rounded-full border border-slate-200 bg-white px-3 py-1 text-sm text-slate-700"
                     >
                       {{ callType.name }} ·
                       {{ callType.status === 'active' ? 'активен' : 'отключён' }}
-                    </span>
+                    </RouterLink>
                   </div>
                 </div>
               </div>

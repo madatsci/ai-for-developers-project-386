@@ -66,8 +66,9 @@ func NewHandler(ping func(context.Context) error, services HandlerServices) http
 		adminWorkingHoursController,
 	}
 	contracts := map[string]requestContract{
-		"/api/v1/public/calls":     {jsonMethod: http.MethodPost, validateJSON: validateCreateCallJSON},
-		"/api/v1/admin/call-types": {jsonMethod: http.MethodPost},
+		"/api/v1/public/call-types": {},
+		"/api/v1/public/calls":      {jsonMethod: http.MethodPost, validateJSON: validateCreateCallJSON},
+		"/api/v1/admin/call-types":  {jsonMethod: http.MethodPost},
 		"/api/v1/admin/calls": {
 			allowedQuery:  map[string]bool{"period": true, "call_type_id": true, "q": true, "cursor": true},
 			nonEmptyQuery: map[string]bool{"call_type_id": true, "cursor": true},
@@ -94,6 +95,9 @@ func productRequestGuard(contracts map[string]requestContract, next http.Handler
 		}
 		if !guarded && strings.HasPrefix(r.URL.Path, "/api/v1/admin/call-types/") {
 			contract = requestContract{jsonMethod: http.MethodPut}
+			guarded = true
+		}
+		if !guarded && strings.HasPrefix(r.URL.Path, "/api/v1/public/call-types/") {
 			guarded = true
 		}
 		if !guarded {

@@ -68,8 +68,11 @@ func TestAdminCallsClassifiesAndOrdersSnapshot(t *testing.T) {
 	if err := json.Unmarshal(upcoming.Body.Bytes(), &page); err != nil {
 		t.Fatalf("decode upcoming: %v", err)
 	}
-	if !page.AsOf.Equal(now) || page.Timezone != "Europe/Moscow" || page.NextCursor != nil {
+	if !page.AsOf.Equal(now.Truncate(time.Second)) || page.Timezone != "Europe/Moscow" || page.NextCursor != nil {
 		t.Errorf("snapshot metadata = %+v", page)
+	}
+	if !bytes.Contains(upcoming.Body.Bytes(), []byte(`"as_of":"2026-10-20T12:00:00+03:00"`)) {
+		t.Errorf("as_of must not contain fractional seconds: %s", upcoming.Body.String())
 	}
 	wantUpcoming := []string{
 		"018f0000-0000-7000-8000-000000000503",
@@ -126,10 +129,10 @@ func TestAdminCallsFiltersAndPaginatesStableSnapshot(t *testing.T) {
 	rows.Close()
 
 	moscow := time.FixedZone("Europe/Moscow", 3*60*60)
-	asOf := time.Date(2026, time.October, 20, 12, 0, 0, 0, moscow)
+	asOf := time.Date(2026, time.October, 20, 12, 0, 0, 500_000_000, moscow)
 	for index := 0; index < 55; index++ {
 		id := fmt.Sprintf("018f0000-0000-7000-8000-%012x", 0x600+index)
-		startsAt := asOf.Add(time.Hour + time.Duration(index)*20*time.Minute)
+		startsAt := asOf.Truncate(time.Second).Add(time.Hour + time.Duration(index)*20*time.Minute)
 		name := fmt.Sprintf("Посетитель %02d", index)
 		email := fmt.Sprintf("visitor%02d@example.com", index)
 		notes := "Обычный комментарий"
@@ -168,7 +171,7 @@ func TestAdminCallsFiltersAndPaginatesStableSnapshot(t *testing.T) {
 			'018f0000-0000-7000-8000-000000000699', $1, 'Поздний тип', 15,
 			$2, 'Поздний посетитель', 'late@example.com', $3
 		)
-	`, callTypeIDs[15], asOf.Add(20*time.Hour), asOf.Add(time.Second)); err != nil {
+	`, callTypeIDs[15], asOf.Truncate(time.Second).Add(20*time.Hour), asOf.Add(100*time.Millisecond)); err != nil {
 		t.Fatalf("insert after snapshot: %v", err)
 	}
 
