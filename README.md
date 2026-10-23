@@ -27,8 +27,9 @@ cd ai-for-developers-project-386
 make setup
 ```
 
-`make setup` устанавливает зависимости из lock-файлов и golangci-lint фиксированной
-версии в `.bin/` проекта. Системная установка линтера не меняется.
+`make setup` устанавливает зависимости из lock-файлов, Chromium для Playwright и
+golangci-lint фиксированной версии в `.bin/` проекта. Системная установка линтера
+не меняется.
 
 ## Локальный запуск
 
@@ -64,6 +65,17 @@ make dev-frontend  # второй терминал
 `FRONTEND_PORT`. При изменении адреса бэкенда также измените `API_PROXY_TARGET`.
 Учётные данные `calendar/calendar` предназначены только для локальной БД.
 
+### Контейнерный production-запуск
+
+```bash
+docker compose up --build --wait app
+```
+
+Приложение доступно на <http://127.0.0.1:8080>. Один Go-процесс обслуживает
+собранный frontend и same-origin `/api`; перед его запуском контейнер применяет
+миграции и идемпотентный seed. PostgreSQL запускается отдельным сервисом Compose.
+Остановка с сохранением данных: `docker compose down`.
+
 ## Проверки
 
 | Команда | Что проверяет |
@@ -74,7 +86,8 @@ make dev-frontend  # второй терминал
 | `make build` | Go-бинарник, frontend-сборка, OpenAPI и клиентский SDK |
 | `make generate-server` | Обновляет сгенерированный Go-пакет из TypeSpec |
 | `make lint-server` | Проверяет сгенерированный Go-пакет на дрейф |
-| `make smoke` | Запускает БД, собирает и проверяет работающее приложение |
+| `make container-build` | Собирает production-образ приложения |
+| `make smoke` | На чистой БД проверяет контейнерный frontend/API и browser E2E |
 | `make check` | Все проверки: lint, test, build и smoke |
 
 По отдельности доступны `make test-backend`, `make test-frontend`,
@@ -103,10 +116,9 @@ Go-сборка и тесты используют закоммиченный п
 контракту обоих generated-пакетов. Промежуточный
 `api/tsp-output/openapi.yaml` не коммитится и не копируется в backend.
 
-Сгенерированный роутер использует `chi` как `http.Handler` внутри существующего
-стандартного `http.Server`. Сейчас в рабочий роутер подключён только реализованный
-health endpoint; остальные controllers и servicer-интерфейсы являются
-заготовками и не публикуют ответы `501`.
+Сгенерированный роутер использует `chi` как `http.Handler` внутри стандартного
+`http.Server`. Реализованные controllers подключены к рукописным сервисам; сам
+generated-код не содержит доменную логику.
 
 Проект намеренно не использует `kin-openapi` и не загружает OpenAPI-схему во
 время работы. Generated controller выполняет разбор и часть проверок, но не
@@ -117,14 +129,12 @@ JSON-значения, запрет неизвестных query-парамет�
 endpoint эти требования нужно реализовать и протестировать в рукописном
 transport/service-адаптере вне generated-каталога.
 
-Дымовой тест запускает собранный Go-бинарник и Vite preview на отдельных портах
-`18080` и `14173`, проверяет HTML, доступность JS/CSS и JSON-ответ API напрямую
-и через frontend-прокси с настоящим подключением к PostgreSQL. Затем он
-останавливает созданные процессы. Порты можно изменить переменными
-`SMOKE_BACKEND_PORT` и `SMOKE_FRONTEND_PORT`. PostgreSQL после теста остаётся
-запущенным; остановка — `make db-down`.
-
-Vite preview используется только для проверки сборки, не для production-хостинга.
+`make smoke` создаёт изолированный Compose-проект, собирает production-образ,
+запускает приложение с чистой PostgreSQL и проверяет frontend assets, same-origin
+API, миграции, seed и фактическую запись/чтение данных. Затем Playwright проходит
+публичное бронирование и административное изменение режима работы, расписания и
+типа звонка. По завершении тестовые контейнеры и volume удаляются. Порты можно
+изменить переменными `SMOKE_APP_PORT` и `SMOKE_POSTGRES_PORT`.
 
 ## Структура
 
@@ -135,8 +145,10 @@ backend/internal/httpapi/ маршруты и тесты HTTP API
 backend/internal/httpapi/generated/  сгенерированные Go-модели и controllers
 frontend/src/            Vue-приложение и тесты
 frontend/src/api/generated/  сгенерированный Fetch SDK
+frontend/e2e/            browser E2E production-контура
 scripts/smoke.mjs         проверка запуска приложения
-compose.yaml             локальная PostgreSQL
+Dockerfile               multi-stage production-образ
+compose.yaml             приложение и PostgreSQL
 .github/workflows/ci.yml  автоматические проверки
 ```
 
