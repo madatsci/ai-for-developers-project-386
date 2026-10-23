@@ -44,14 +44,14 @@ func TestAdminCallsClassifiesAndOrdersSnapshot(t *testing.T) {
 				id, call_type_id, call_type_name, duration_minutes, starts_at,
 				visitor_name, visitor_email, created_at
 			)
-			VALUES ($1, $2, 'Историческое название', 30, $3, $4, 'visitor@example.com', '2026-10-20T09:00:00+03:00')
+			VALUES ($1, $2, 'Историческое название', 30, $3, $4, 'visitor@example.com', '2026-10-20T12:00:00.250+03:00')
 		`, call.id, callTypeID, call.startsAt, call.name); err != nil {
 			t.Fatalf("insert call %s: %v", call.id, err)
 		}
 	}
 
 	moscow := time.FixedZone("Europe/Moscow", 3*60*60)
-	now := time.Date(2026, time.October, 20, 12, 0, 0, 0, moscow)
+	now := time.Date(2026, time.October, 20, 12, 0, 0, 500_000_000, moscow)
 	handler := newAdminCallsIntegrationHandler(pool, newAdminCallsService(pool, func() time.Time { return now }))
 
 	upcoming := httptest.NewRecorder()
@@ -227,6 +227,8 @@ func TestAdminCallsFiltersAndPaginatesStableSnapshot(t *testing.T) {
 
 	for name, requestURL := range map[string]string{
 		"invalid call type": "/api/v1/admin/calls?call_type_id=wrong",
+		"empty call type":   "/api/v1/admin/calls?call_type_id=",
+		"empty cursor":      "/api/v1/admin/calls?cursor=",
 		"long search":       "/api/v1/admin/calls?q=" + strings.Repeat("я", 201),
 		"unknown query":     "/api/v1/admin/calls?unexpected=1",
 	} {

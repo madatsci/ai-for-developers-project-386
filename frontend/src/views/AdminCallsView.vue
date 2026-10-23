@@ -289,7 +289,7 @@ function isCurrent(call: AdminCall) {
             v-else
             class="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
           >
-            <table class="hidden w-full min-w-[48rem] border-collapse text-left text-sm lg:table">
+            <table class="hidden w-full min-w-[48rem] border-collapse text-left text-sm xl:table">
               <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase">
                 <tr>
                   <th class="px-4 py-3">Время</th>
@@ -347,7 +347,7 @@ function isCurrent(call: AdminCall) {
               </tbody>
             </table>
 
-            <div class="divide-y divide-slate-200 lg:hidden">
+            <div class="divide-y divide-slate-200 xl:hidden">
               <section v-for="group in groupedCalls" :key="group.key">
                 <div class="flex items-center justify-between bg-slate-100 px-4 py-3">
                   <h2 class="font-bold capitalize">{{ formatDate(group.items[0]!.starts_at) }}</h2>

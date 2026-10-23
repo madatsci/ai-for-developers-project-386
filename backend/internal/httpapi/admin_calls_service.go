@@ -65,7 +65,7 @@ func (s adminCallsService) ListAdminCalls(
 		return validationResponse(fieldErrors), nil
 	}
 
-	asOf := s.now().Truncate(time.Second)
+	asOf := s.now()
 	var pageCursor *adminCallsCursor
 	if cursorValue != "" {
 		decoded, err := decodeAdminCallsCursor(cursorValue)

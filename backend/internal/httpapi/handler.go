@@ -66,9 +66,12 @@ func NewHandler(ping func(context.Context) error, services HandlerServices) http
 		adminWorkingHoursController,
 	}
 	contracts := map[string]requestContract{
-		"/api/v1/public/calls":        {jsonMethod: http.MethodPost, validateJSON: validateCreateCallJSON},
-		"/api/v1/admin/call-types":    {jsonMethod: http.MethodPost},
-		"/api/v1/admin/calls":         {allowedQuery: map[string]bool{"period": true, "call_type_id": true, "q": true, "cursor": true}},
+		"/api/v1/public/calls":     {jsonMethod: http.MethodPost, validateJSON: validateCreateCallJSON},
+		"/api/v1/admin/call-types": {jsonMethod: http.MethodPost},
+		"/api/v1/admin/calls": {
+			allowedQuery:  map[string]bool{"period": true, "call_type_id": true, "q": true, "cursor": true},
+			nonEmptyQuery: map[string]bool{"call_type_id": true, "cursor": true},
+		},
 		"/api/v1/admin/schedules":     {jsonMethod: http.MethodPost},
 		"/api/v1/admin/working-hours": {jsonMethod: http.MethodPut},
 	}
@@ -76,9 +79,10 @@ func NewHandler(ping func(context.Context) error, services HandlerServices) http
 }
 
 type requestContract struct {
-	jsonMethod   string
-	validateJSON func(http.ResponseWriter, []byte) bool
-	allowedQuery map[string]bool
+	jsonMethod    string
+	validateJSON  func(http.ResponseWriter, []byte) bool
+	allowedQuery  map[string]bool
+	nonEmptyQuery map[string]bool
 }
 
 func productRequestGuard(contracts map[string]requestContract, next http.Handler) http.Handler {
@@ -109,6 +113,14 @@ func productRequestGuard(contracts map[string]requestContract, next http.Handler
 					fieldError("query."+keys[0], "unknown", "Неизвестный параметр запроса"),
 				})
 				return
+			}
+			for key := range contract.nonEmptyQuery {
+				if query.Has(key) && query.Get(key) == "" {
+					writeValidationError(w, []generated.FieldError{
+						fieldError("query."+key, "required", "Параметр не должен быть пустым"),
+					})
+					return
+				}
 			}
 		}
 		if r.Method != contract.jsonMethod {

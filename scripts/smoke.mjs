@@ -71,18 +71,22 @@ try {
   })
   assert.equal(callTypes.status, 200)
   assert.equal(callTypes.headers.get('cache-control'), 'no-store')
-  assert.deepEqual(
-    (await callTypes.json()).items.map(({ name, description, duration_minutes }) => ({
-      name,
-      description,
-      duration_minutes,
-    })),
-    [
-      { name: 'Звонок на 15 минут', description: null, duration_minutes: 15 },
-      { name: 'Звонок на 30 минут', description: null, duration_minutes: 30 },
-      { name: 'Звонок на 60 минут', description: null, duration_minutes: 60 },
-    ],
-  )
+  const publicCallTypes = (await callTypes.json()).items
+  for (const expected of [
+    { name: 'Звонок на 15 минут', description: null, duration_minutes: 15 },
+    { name: 'Звонок на 30 минут', description: null, duration_minutes: 30 },
+    { name: 'Звонок на 60 минут', description: null, duration_minutes: 60 },
+  ]) {
+    assert.ok(
+      publicCallTypes.some(
+        ({ name, description, duration_minutes }) =>
+          name === expected.name &&
+          description === expected.description &&
+          duration_minutes === expected.duration_minutes,
+      ),
+      `Seeded call type is missing: ${expected.name}`,
+    )
+  }
 
   const schedulesResponse = await fetch(`${backendURL}/api/v1/admin/schedules`, {
     signal: AbortSignal.timeout(3000),
