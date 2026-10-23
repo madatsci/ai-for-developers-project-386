@@ -9,11 +9,14 @@ export FRONTEND_PORT ?= 5175
 SMOKE_APP_PORT ?= 18080
 SMOKE_POSTGRES_PORT ?= 15433
 SMOKE_PROJECT ?= calendar-smoke
+STANDALONE_SMOKE_APP_PORT ?= 18081
+STANDALONE_SMOKE_CONTAINER ?= calendar-standalone-smoke
+STANDALONE_SMOKE_IMAGE ?= calendar-of-calls:standalone-smoke
 
 GOLANGCI_VERSION := v2.15.0
 GOLANGCI := $(CURDIR)/.bin/$(GOLANGCI_VERSION)/golangci-lint
 
-.PHONY: help setup install tools browser db-up db-down migrate seed dev dev-backend dev-frontend test test-backend test-integration test-frontend lint lint-backend lint-frontend lint-typespec lint-openapi lint-client lint-server lint-render format build build-backend build-frontend build-typespec generate generate-client generate-server container-build smoke smoke-remote check
+.PHONY: help setup install tools browser db-up db-down migrate seed dev dev-backend dev-frontend test test-backend test-integration test-frontend lint lint-backend lint-frontend lint-typespec lint-openapi lint-client lint-server lint-render format build build-backend build-frontend build-typespec generate generate-client generate-server container-build smoke smoke-standalone smoke-remote check
 
 help:
 	@echo "make setup        Install dependencies, Chromium and the pinned Go linter"
@@ -30,6 +33,7 @@ help:
 	@echo "make lint-server      Check the generated Go server package for drift"
 	@echo "make container-build  Build the production application image"
 	@echo "make smoke        Smoke-test the containerized production application"
+	@echo "make smoke-standalone  Smoke-test the image without an external database"
 	@echo "make smoke-remote Smoke-test the deployed application over HTTPS"
 	@echo "make check        Run lint, tests, builds and the smoke test"
 	@echo "make db-down      Stop PostgreSQL, preserving its data volume"
@@ -157,8 +161,17 @@ smoke:
 	SMOKE_BASE_URL=http://127.0.0.1:$(SMOKE_APP_PORT) node scripts/smoke.mjs; \
 	E2E_BASE_URL=http://127.0.0.1:$(SMOKE_APP_PORT) npm --prefix frontend run test:e2e
 
+smoke-standalone:
+	@set -eu; \
+	cleanup() { docker rm -f $(STANDALONE_SMOKE_CONTAINER) >/dev/null 2>&1 || true; }; \
+	trap cleanup EXIT INT TERM; \
+	cleanup; \
+	docker build -t $(STANDALONE_SMOKE_IMAGE) .; \
+	docker run -d --name $(STANDALONE_SMOKE_CONTAINER) -e PORT=8080 -p 127.0.0.1:$(STANDALONE_SMOKE_APP_PORT):8080 $(STANDALONE_SMOKE_IMAGE); \
+	SMOKE_BASE_URL=http://127.0.0.1:$(STANDALONE_SMOKE_APP_PORT) node scripts/smoke.mjs || { docker logs $(STANDALONE_SMOKE_CONTAINER); exit 1; }
+
 smoke-remote:
 	@test -n "$(REMOTE_SMOKE_BASE_URL)" || { echo "Set REMOTE_SMOKE_BASE_URL to the deployed HTTPS origin"; exit 2; }
 	SMOKE_BASE_URL="$(REMOTE_SMOKE_BASE_URL)" SMOKE_REQUIRE_HTTPS=1 node scripts/smoke.mjs
 
-check: lint test test-integration smoke
+check: lint test test-integration smoke smoke-standalone
