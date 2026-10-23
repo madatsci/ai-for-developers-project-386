@@ -94,6 +94,7 @@ func newTestHandler(ping func(context.Context) error) http.Handler {
 		PublicCallTypes:   publicCallTypesStub{},
 		PublicCalls:       publicCallsStub{},
 		AdminCallTypes:    adminCallTypesStub{},
+		AdminCalls:        adminCallsStub{},
 		AdminSchedules:    adminSchedulesStub{},
 		AdminWorkingHours: adminWorkingHoursStub{},
 	})
@@ -110,6 +111,12 @@ type adminWorkingHoursStub struct{}
 type adminSchedulesStub struct{}
 
 type adminCallTypesStub struct{}
+
+type adminCallsStub struct{}
+
+func (adminCallsStub) ListAdminCalls(context.Context, generated.CallPeriod, string, string, string) (generated.ImplResponse, error) {
+	return domainResponse(http.StatusOK, generated.AdminCallPage{Items: []generated.AdminCall{}}), nil
+}
 
 func (adminCallTypesStub) ListAdminCallTypes(context.Context) (generated.ImplResponse, error) {
 	return domainResponse(http.StatusOK, generated.AdminCallTypeList{Items: []generated.AdminCallType{}}), nil

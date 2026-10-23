@@ -23,6 +23,7 @@ type HandlerServices struct {
 	PublicCallTypes   generated.PublicCallTypesAPIServicer
 	PublicCalls       generated.PublicCallsAPIServicer
 	AdminCallTypes    generated.AdminCallTypesAPIServicer
+	AdminCalls        generated.AdminCallsAPIServicer
 	AdminSchedules    generated.AdminSchedulesAPIServicer
 	AdminWorkingHours generated.AdminWorkingHoursAPIServicer
 }
@@ -42,6 +43,10 @@ func NewHandler(ping func(context.Context) error, services HandlerServices) http
 		services.AdminCallTypes,
 		generated.WithAdminCallTypesAPIErrorHandler(controllerErrorHandler),
 	)
+	adminCallsController := generated.NewAdminCallsAPIController(
+		services.AdminCalls,
+		generated.WithAdminCallsAPIErrorHandler(controllerErrorHandler),
+	)
 	adminWorkingHoursController := generated.NewAdminWorkingHoursAPIController(
 		services.AdminWorkingHours,
 		generated.WithAdminWorkingHoursAPIErrorHandler(controllerErrorHandler),
@@ -56,12 +61,14 @@ func NewHandler(ping func(context.Context) error, services HandlerServices) http
 		}},
 		publicCallsController,
 		adminCallTypesController,
+		adminCallsController,
 		adminSchedulesController,
 		adminWorkingHoursController,
 	}
 	contracts := map[string]requestContract{
 		"/api/v1/public/calls":        {jsonMethod: http.MethodPost, validateJSON: validateCreateCallJSON},
 		"/api/v1/admin/call-types":    {jsonMethod: http.MethodPost},
+		"/api/v1/admin/calls":         {allowedQuery: map[string]bool{"period": true, "call_type_id": true, "q": true, "cursor": true}},
 		"/api/v1/admin/schedules":     {jsonMethod: http.MethodPost},
 		"/api/v1/admin/working-hours": {jsonMethod: http.MethodPut},
 	}
@@ -71,6 +78,7 @@ func NewHandler(ping func(context.Context) error, services HandlerServices) http
 type requestContract struct {
 	jsonMethod   string
 	validateJSON func(http.ResponseWriter, []byte) bool
+	allowedQuery map[string]bool
 }
 
 func productRequestGuard(contracts map[string]requestContract, next http.Handler) http.Handler {
@@ -91,13 +99,17 @@ func productRequestGuard(contracts map[string]requestContract, next http.Handler
 		if query := r.URL.Query(); len(query) > 0 {
 			keys := make([]string, 0, len(query))
 			for key := range query {
-				keys = append(keys, key)
+				if !contract.allowedQuery[key] {
+					keys = append(keys, key)
+				}
 			}
-			sort.Strings(keys)
-			writeValidationError(w, []generated.FieldError{
-				fieldError("query."+keys[0], "unknown", "Неизвестный параметр запроса"),
-			})
-			return
+			if len(keys) > 0 {
+				sort.Strings(keys)
+				writeValidationError(w, []generated.FieldError{
+					fieldError("query."+keys[0], "unknown", "Неизвестный параметр запроса"),
+				})
+				return
+			}
 		}
 		if r.Method != contract.jsonMethod {
 			next.ServeHTTP(w, r)
