@@ -45,10 +45,7 @@ func run() error {
 		return fmt.Errorf("connect to database: %w", err)
 	}
 
-	addr := os.Getenv("HTTP_ADDR")
-	if addr == "" {
-		addr = "127.0.0.1:8080"
-	}
+	addr := listenAddress()
 	handler := httpapi.NewHandler(
 		pool.Ping,
 		httpapi.HandlerServices{
@@ -98,4 +95,14 @@ func run() error {
 		return fmt.Errorf("serve HTTP: %w", err)
 	}
 	return nil
+}
+
+func listenAddress() string {
+	if port := os.Getenv("PORT"); port != "" {
+		return "0.0.0.0:" + port
+	}
+	if addr := os.Getenv("HTTP_ADDR"); addr != "" {
+		return addr
+	}
+	return "127.0.0.1:8080"
 }

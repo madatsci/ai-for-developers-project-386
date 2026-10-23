@@ -23,9 +23,9 @@ COPY --from=backend-build /out/ ./
 COPY --from=frontend-build /src/frontend/dist/ ./public/
 COPY --chmod=755 scripts/container-entrypoint.sh ./entrypoint
 USER calendar
-ENV HTTP_ADDR=0.0.0.0:8080
+ENV PORT=8080
 ENV STATIC_DIR=/app/public
 EXPOSE 8080
 HEALTHCHECK --interval=2s --timeout=3s --retries=15 \
-    CMD wget -q -O /dev/null http://127.0.0.1:8080/api/health || exit 1
+    CMD wget -q -O /dev/null "http://127.0.0.1:${PORT}/api/health" || exit 1
 ENTRYPOINT ["/app/entrypoint"]

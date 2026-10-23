@@ -7,6 +7,7 @@
 
 Учебный проект Хекслета: https://ru.hexlet.io/programs/ai-for-developers
 Как это должно работать: https://files.hexlet.app/a/2ipc5m
+Развёрнутое приложение: https://calendar-of-calls.onrender.com
 
 ## Стек
 
@@ -74,7 +75,8 @@ docker compose up --build --wait app
 Приложение доступно на <http://127.0.0.1:8080>. Один Go-процесс обслуживает
 собранный frontend и same-origin `/api`; перед его запуском контейнер применяет
 миграции и идемпотентный seed. PostgreSQL запускается отдельным сервисом Compose.
-Остановка с сохранением данных: `docker compose down`.
+Внутри контейнера HTTP-сервер слушает `0.0.0.0:$PORT`; Compose задаёт
+`PORT=8080`. Остановка с сохранением данных: `docker compose down`.
 
 ### Развёртывание в Render
 
@@ -92,7 +94,7 @@ seed выполняются контейнерным entrypoint перед ка�
 Удалённая проверка опубликованного контура:
 
 ```bash
-make smoke-remote REMOTE_SMOKE_BASE_URL=https://<service>.onrender.com
+make smoke-remote REMOTE_SMOKE_BASE_URL=https://calendar-of-calls.onrender.com
 ```
 
 Команда требует HTTPS, проверяет frontend, API, соединение с PostgreSQL и seed.
