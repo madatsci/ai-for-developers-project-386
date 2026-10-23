@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.1](https://github.com/madatsci/ai-for-developers-project-386/compare/v0.3.0...v0.3.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* support standalone container checks ([dcc74b3](https://github.com/madatsci/ai-for-developers-project-386/commit/dcc74b3642b9fbdec5d84797422f06f70faaea69))
+* support standalone container checks ([fc19a4a](https://github.com/madatsci/ai-for-developers-project-386/commit/fc19a4a25869b327f1933a6ea4d2c7d713822ede))
+
 ## [0.3.0](https://github.com/madatsci/ai-for-developers-project-386/compare/v0.2.0...v0.3.0) (2026-10-23)
 
 
