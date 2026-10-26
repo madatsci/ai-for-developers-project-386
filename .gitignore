@@ -3,6 +3,9 @@
 node_modules/
 dist/
 tsp-output/
+!api/tsp-output/
+api/tsp-output/*
+!api/tsp-output/openapi.yaml
 coverage/
 test-results/
 playwright-report/

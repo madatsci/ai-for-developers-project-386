@@ -204,8 +204,8 @@ func normalizeCallRequest(key string, request generated.CreateCallRequest) (norm
 		fieldErrors = append(fieldErrors, fieldError("body.call_type_version", "required", "Укажите версию типа звонка"))
 	}
 	moscowStart := request.StartsAt.In(moscowLocation)
-	if request.StartsAt.IsZero() || request.StartsAt.Second() != 0 || request.StartsAt.Nanosecond() != 0 || moscowStart.Minute()%5 != 0 {
-		fieldErrors = append(fieldErrors, fieldError("body.starts_at", "invalid", "Начало должно быть на пятиминутной сетке"))
+	if request.StartsAt.IsZero() || request.StartsAt.Second() != 0 || request.StartsAt.Nanosecond() != 0 || moscowStart.Minute()%slotStepMinutes != 0 {
+		fieldErrors = append(fieldErrors, fieldError("body.starts_at", "invalid", "Начало должно быть на 30-минутной сетке"))
 	}
 	return result, fieldErrors
 }

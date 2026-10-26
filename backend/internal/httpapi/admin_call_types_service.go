@@ -295,8 +295,8 @@ func validateCallTypeRequest(
 			normalizedDescription = &value
 		}
 	}
-	if durationMinutes < 15 || durationMinutes > 240 || durationMinutes%5 != 0 {
-		fieldErrors = append(fieldErrors, fieldError("body.duration_minutes", "invalid", "Длительность должна быть от 15 до 240 минут с шагом 5"))
+	if durationMinutes < 30 || durationMinutes > 240 || durationMinutes%30 != 0 {
+		fieldErrors = append(fieldErrors, fieldError("body.duration_minutes", "invalid", "Длительность должна быть от 30 до 240 минут с шагом 30"))
 	}
 	if !status.IsValid() {
 		fieldErrors = append(fieldErrors, fieldError("body.status", "invalid", "Статус должен быть active или disabled"))

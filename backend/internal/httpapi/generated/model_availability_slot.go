@@ -18,11 +18,11 @@ import (
 
 type AvailabilitySlot struct {
 
-	// A five-minute-grid RFC 3339 timestamp normalized to Europe/Moscow.
-	StartsAt time.Time `json:"starts_at" validate:"regexp=^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][05]:00\\+03:00$"`
+	// A thirty-minute-grid RFC 3339 timestamp normalized to Europe/Moscow.
+	StartsAt time.Time `json:"starts_at" validate:"regexp=^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):(?:00|30):00\\+03:00$"`
 
-	// A five-minute-grid RFC 3339 timestamp normalized to Europe/Moscow.
-	EndsAt time.Time `json:"ends_at" validate:"regexp=^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][05]:00\\+03:00$"`
+	// A thirty-minute-grid RFC 3339 timestamp normalized to Europe/Moscow.
+	EndsAt time.Time `json:"ends_at" validate:"regexp=^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):(?:00|30):00\\+03:00$"`
 }
 
 // UnmarshalJSON validates required property keys then unmarshals into AvailabilitySlot

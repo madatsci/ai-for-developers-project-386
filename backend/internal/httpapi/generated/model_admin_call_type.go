@@ -28,7 +28,7 @@ type AdminCallType struct {
 
 	Description *string `json:"description"`
 
-	// Duration in minutes. The service accepts values in five-minute increments.
+	// Duration in minutes. The service accepts values in thirty-minute increments.
 	DurationMinutes int32 `json:"duration_minutes"`
 
 	Status CallTypeStatus `json:"status"`
@@ -188,7 +188,7 @@ func AssertAdminCallTypeRequired(obj AdminCallType) error {
 
 // AssertAdminCallTypeConstraints checks if the values respects the defined constraints
 func AssertAdminCallTypeConstraints(obj AdminCallType) error {
-	if obj.DurationMinutes < 15 {
+	if obj.DurationMinutes < 30 {
 		return &ParsingError{Param: "DurationMinutes", Err: errors.New(errMsgMinValueConstraint)}
 	}
 	if obj.DurationMinutes > 240 {

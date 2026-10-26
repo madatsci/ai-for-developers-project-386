@@ -110,8 +110,8 @@ func TestGeneratedAdminCallTypesControllerChecksNumericBounds(t *testing.T) {
 		wantStatus   int
 		wantServiced bool
 	}{
-		{duration: 14, wantStatus: http.StatusBadRequest},
-		{duration: 15, wantStatus: http.StatusNoContent, wantServiced: true},
+		{duration: 29, wantStatus: http.StatusBadRequest},
+		{duration: 30, wantStatus: http.StatusNoContent, wantServiced: true},
 		{duration: 240, wantStatus: http.StatusNoContent, wantServiced: true},
 		{duration: 241, wantStatus: http.StatusBadRequest},
 	}

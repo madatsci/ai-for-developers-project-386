@@ -25,7 +25,7 @@ type AvailabilityResponseBodyCallType struct {
 
 	Description *string `json:"description"`
 
-	// Duration in minutes. The service accepts values in five-minute increments.
+	// Duration in minutes. The service accepts values in thirty-minute increments.
 	DurationMinutes int32 `json:"duration_minutes"`
 
 	// An opaque resource version. Clients must not interpret its contents.
@@ -125,7 +125,7 @@ func AssertAvailabilityResponseBodyCallTypeRequired(obj AvailabilityResponseBody
 
 // AssertAvailabilityResponseBodyCallTypeConstraints checks if the values respects the defined constraints
 func AssertAvailabilityResponseBodyCallTypeConstraints(obj AvailabilityResponseBodyCallType) error {
-	if obj.DurationMinutes < 15 {
+	if obj.DurationMinutes < 30 {
 		return &ParsingError{Param: "DurationMinutes", Err: errors.New(errMsgMinValueConstraint)}
 	}
 	if obj.DurationMinutes > 240 {

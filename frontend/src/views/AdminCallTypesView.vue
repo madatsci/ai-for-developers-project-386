@@ -164,11 +164,11 @@ function validateForm() {
   if (descriptionLength > 500) errors.description = 'Описание должно быть не длиннее 500 символов.'
   if (
     !Number.isInteger(form.value.durationMinutes) ||
-    form.value.durationMinutes < 15 ||
+    form.value.durationMinutes < 30 ||
     form.value.durationMinutes > 240 ||
-    form.value.durationMinutes % 5 !== 0
+    form.value.durationMinutes % 30 !== 0
   )
-    errors.duration_minutes = 'Укажите от 15 до 240 минут с шагом 5.'
+    errors.duration_minutes = 'Укажите от 30 до 240 минут с шагом 30.'
   if (!form.value.scheduleId) errors.schedule_id = 'Выберите расписание.'
   fieldErrors.value = errors
   return Object.keys(errors).length === 0
@@ -500,9 +500,9 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
                     v-model.number="form.durationMinutes"
                     name="call-type-duration"
                     type="number"
-                    min="15"
+                    min="30"
                     max="240"
-                    step="5"
+                    step="30"
                     class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5"
                     @input="markEdited"
                   />

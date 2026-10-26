@@ -118,7 +118,7 @@ func TestCreateCallAcceptsSlotAcrossTouchingAvailabilityIntervals(t *testing.T) 
 	}
 	now := time.Date(2026, time.October, 22, 10, 0, 0, 0, moscowLocation)
 	handler := newIntegrationHandler(pool, newPublicCallTypesService(pool, func() time.Time { return now }), newPublicCallsService(pool, func() time.Time { return now }))
-	body := `{"call_type_slug":"zvonok-na-30-minut","call_type_version":"1","starts_at":"2026-10-23T09:45:00+03:00","visitor_name":"Анна","visitor_email":"anna@example.com"}`
+	body := `{"call_type_slug":"zvonok-na-30-minut","call_type_version":"1","starts_at":"2026-10-23T09:30:00+03:00","visitor_name":"Анна","visitor_email":"anna@example.com"}`
 
 	response := postCall(t, handler, "8f0902ca-91a1-4f87-87ed-e3b5b00c86b7", body)
 	if response.Code != http.StatusCreated {
@@ -245,6 +245,8 @@ func TestCreateCallRejectsInvalidHTTPAndFields(t *testing.T) {
 		{"long call type slug", "application/json", "8f0902ca-91a1-4f87-87ed-e3b5b00c86b7", strings.Replace(validBody, "zvonok-na-30-minut", strings.Repeat("a", 101), 1), "", http.StatusUnprocessableEntity, "validation_error", "body.call_type_slug"},
 		{"fractional start", "application/json", "8f0902ca-91a1-4f87-87ed-e3b5b00c86b7", strings.Replace(validBody, "10:00:00+03:00", "10:00:00.000+03:00", 1), "", http.StatusUnprocessableEntity, "validation_error", "body.starts_at"},
 		{"off-grid absolute start", "application/json", "8f0902ca-91a1-4f87-87ed-e3b5b00c86b7", strings.Replace(validBody, "+03:00", "+03:02", 1), "", http.StatusUnprocessableEntity, "validation_error", "body.starts_at"},
+		{"quarter-hour start", "application/json", "8f0902ca-91a1-4f87-87ed-e3b5b00c86b7", strings.Replace(validBody, "10:00:00+03:00", "10:15:00+03:00", 1), "", http.StatusUnprocessableEntity, "validation_error", "body.starts_at"},
+		{"three-quarter-hour start", "application/json", "8f0902ca-91a1-4f87-87ed-e3b5b00c86b7", strings.Replace(validBody, "10:00:00+03:00", "10:45:00+03:00", 1), "", http.StatusUnprocessableEntity, "validation_error", "body.starts_at"},
 		{"multiline name", "application/json", "8f0902ca-91a1-4f87-87ed-e3b5b00c86b7", strings.Replace(validBody, `"Анна"`, `"Анна\nИванова"`, 1), "", http.StatusUnprocessableEntity, "validation_error", "body.visitor_name"},
 		{"long name", "application/json", "8f0902ca-91a1-4f87-87ed-e3b5b00c86b7", strings.Replace(validBody, `"Анна"`, `"`+strings.Repeat("Я", 101)+`"`, 1), "", http.StatusUnprocessableEntity, "validation_error", "body.visitor_name"},
 		{"display-name email", "application/json", "8f0902ca-91a1-4f87-87ed-e3b5b00c86b7", strings.Replace(validBody, `"anna@example.com"`, `"Anna <anna@example.com>"`, 1), "", http.StatusUnprocessableEntity, "validation_error", "body.visitor_email"},
@@ -305,7 +307,7 @@ func TestCreateCallIdempotency(t *testing.T) {
 	if first.Code != http.StatusCreated {
 		t.Fatalf("first status = %d; body=%s", first.Code, first.Body.String())
 	}
-	if _, err := pool.Exec(ctx, `UPDATE call_types SET name = 'Изменённый тип', duration_minutes = 45, version = version + 1 WHERE slug = 'zvonok-na-30-minut'`); err != nil {
+	if _, err := pool.Exec(ctx, `UPDATE call_types SET name = 'Изменённый тип', duration_minutes = 60, version = version + 1 WHERE slug = 'zvonok-na-30-minut'`); err != nil {
 		t.Fatalf("update call type: %v", err)
 	}
 	repeatedBody := strings.Replace(firstBody, `"  Анна  "`, `"Анна"`, 1)

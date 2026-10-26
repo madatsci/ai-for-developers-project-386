@@ -52,6 +52,8 @@ type minuteInterval struct {
 	end   int
 }
 
+const slotStepMinutes = 30
+
 type callInterval struct {
 	start time.Time
 	end   time.Time
@@ -318,8 +320,8 @@ func buildAvailabilityDays(snapshot availabilitySnapshot, generatedAt time.Time)
 		slots := make([]generated.AvailabilitySlot, 0)
 		seen := make(map[int64]struct{})
 		for _, interval := range available {
-			firstMinute := ((interval.start + 4) / 5) * 5
-			for minute := firstMinute; minute+int(snapshot.callType.durationMinutes) <= interval.end; minute += 5 {
+			firstMinute := ((interval.start + slotStepMinutes - 1) / slotStepMinutes) * slotStepMinutes
+			for minute := firstMinute; minute+int(snapshot.callType.durationMinutes) <= interval.end; minute += slotStepMinutes {
 				startsAt := date.Add(time.Duration(minute) * time.Minute)
 				if startsAt.Before(generatedAt) {
 					continue

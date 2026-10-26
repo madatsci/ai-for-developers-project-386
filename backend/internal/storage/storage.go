@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS call_types (
     CHECK (slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$' AND char_length(slug) <= 100),
     CHECK (char_length(name) BETWEEN 1 AND 80),
     CHECK (description IS NULL OR char_length(description) <= 500),
-    CHECK (duration_minutes BETWEEN 15 AND 240 AND duration_minutes % 5 = 0),
+	CHECK (duration_minutes BETWEEN 30 AND 240 AND duration_minutes % 30 = 0),
     CHECK (status IN ('active', 'disabled'))
 );
 
@@ -130,7 +130,11 @@ CREATE TABLE IF NOT EXISTS calls (
     created_at timestamptz NOT NULL DEFAULT now(),
     CHECK (substring(id::text, 15, 1) = '7'),
     CHECK (char_length(call_type_name) BETWEEN 1 AND 80),
-    CHECK (duration_minutes BETWEEN 15 AND 240 AND duration_minutes % 5 = 0),
+	CHECK (duration_minutes BETWEEN 30 AND 240 AND duration_minutes % 30 = 0),
+	CHECK (
+		extract(second FROM starts_at AT TIME ZONE 'Europe/Moscow') = 0
+		AND extract(minute FROM starts_at AT TIME ZONE 'Europe/Moscow')::integer % 30 = 0
+	),
     CHECK (char_length(visitor_name) BETWEEN 1 AND 100),
     CHECK (char_length(visitor_email) BETWEEN 3 AND 254),
     CHECK (visitor_notes IS NULL OR char_length(visitor_notes) <= 1000),
@@ -215,7 +219,7 @@ func Seed(ctx context.Context, pool *pgxpool.Pool) error {
 			return fmt.Errorf("insert schedule interval: %w", err)
 		}
 	}
-	for _, duration := range []int{15, 30, 60} {
+	for _, duration := range []int{30, 60, 90} {
 		id, err := NewUUIDv7()
 		if err != nil {
 			return err

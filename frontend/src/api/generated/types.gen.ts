@@ -230,7 +230,7 @@ export type CreatedCallResponse = NoStoreHeaders & {
 }
 
 /**
- * Duration in minutes. The service accepts values in five-minute increments.
+ * Duration in minutes. The service accepts values in thirty-minute increments.
  */
 export type DurationMinutes = number
 
@@ -322,7 +322,7 @@ export type LocalTime = string
 export type MoscowDateTime = string
 
 /**
- * A five-minute-grid RFC 3339 timestamp normalized to Europe/Moscow.
+ * A thirty-minute-grid RFC 3339 timestamp normalized to Europe/Moscow.
  */
 export type MoscowSlotDateTime = string
 
@@ -368,7 +368,7 @@ export type PublicCallTypeSummary = {
 }
 
 /**
- * A five-minute-grid RFC 3339 timestamp with an explicit offset and no fraction.
+ * A thirty-minute-grid RFC 3339 timestamp with an explicit offset and no fraction.
  */
 export type RequestSlotDateTime = string
 
