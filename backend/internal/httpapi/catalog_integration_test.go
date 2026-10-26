@@ -35,8 +35,8 @@ func TestPublicCallTypeCatalogReadsActiveTypesFromPostgres(t *testing.T) {
 		INSERT INTO call_types (id, schedule_id, slug, name, name_key, description, duration_minutes, status)
 		VALUES
 			('018f0000-0000-7000-8000-000000000001', $1, 'alfavitnyy', 'Алфавитный', 'алфавитный', 'Описание', 30, 'active'),
-			('018f0000-0000-7000-8000-000000000002', $1, 'otklyuchennyy', 'Отключённый', 'отключённый', NULL, 15, 'disabled'),
-			('018f0000-0000-7000-8000-000000000003', $1, 'udalennyy', 'Удалённый', 'удалённый', NULL, 15, 'active')
+			('018f0000-0000-7000-8000-000000000002', $1, 'otklyuchennyy', 'Отключённый', 'отключённый', NULL, 30, 'disabled'),
+			('018f0000-0000-7000-8000-000000000003', $1, 'udalennyy', 'Удалённый', 'удалённый', NULL, 30, 'active')
 	`, scheduleID); err != nil {
 		t.Fatalf("insert catalog fixtures: %v", err)
 	}
@@ -58,7 +58,7 @@ func TestPublicCallTypeCatalogReadsActiveTypesFromPostgres(t *testing.T) {
 	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	wantNames := []string{"Звонок на 15 минут", "Алфавитный", "Звонок на 30 минут", "Звонок на 60 минут"}
+	wantNames := []string{"Алфавитный", "Звонок на 30 минут", "Звонок на 60 минут", "Звонок на 90 минут"}
 	if len(body.Items) != len(wantNames) {
 		t.Fatalf("items = %d, want %d: %s", len(body.Items), len(wantNames), response.Body.String())
 	}
@@ -67,11 +67,11 @@ func TestPublicCallTypeCatalogReadsActiveTypesFromPostgres(t *testing.T) {
 			t.Errorf("items[%d].name = %q, want %q", index, body.Items[index].Name, want)
 		}
 	}
-	if body.Items[0].Description != nil {
-		t.Errorf("nullable description = %q, want null", *body.Items[0].Description)
+	if body.Items[0].Description == nil || *body.Items[0].Description != "Описание" {
+		t.Errorf("description = %v, want Описание", body.Items[0].Description)
 	}
-	if body.Items[1].Description == nil || *body.Items[1].Description != "Описание" {
-		t.Errorf("description = %v, want Описание", body.Items[1].Description)
+	if body.Items[1].Description != nil {
+		t.Errorf("nullable description = %q, want null", *body.Items[1].Description)
 	}
 }
 
@@ -172,9 +172,9 @@ func TestPublicCallTypeAvailabilityUsesMoscowWindowAndAllExistingCalls(t *testin
 		{`DELETE FROM working_hour_intervals WHERE working_hours_id = $1 AND day_of_week = 3`, workingHoursID},
 		{`DELETE FROM schedule_intervals WHERE schedule_id = $1 AND day_of_week = 3`, scheduleID},
 		{`INSERT INTO working_hour_intervals (working_hours_id, day_of_week, start_time, end_time) VALUES
-			($1, 3, '09:00', '12:00'), ($1, 3, '12:00', '13:00')`, workingHoursID},
+			($1, 3, '10:05', '12:30')`, workingHoursID},
 		{`INSERT INTO schedule_intervals (schedule_id, day_of_week, start_time, end_time) VALUES
-			($1, 3, '08:00', '10:30'), ($1, 3, '10:30', '14:00')`, scheduleID},
+			($1, 3, '09:00', '12:30')`, scheduleID},
 	} {
 		if _, err := pool.Exec(ctx, change.query, change.id); err != nil {
 			t.Fatalf("replace Wednesday intervals: %v", err)
@@ -186,7 +186,7 @@ func TestPublicCallTypeAvailabilityUsesMoscowWindowAndAllExistingCalls(t *testin
 			visitor_name, visitor_email, visitor_notes
 		) VALUES (
 			'018f0000-0000-7000-8000-000000000201', $1, 'Занятый час', 60,
-			'2026-10-21T10:30:00+03:00', 'Анна', 'anna@example.com', NULL
+			'2026-10-21T11:00:00+03:00', 'Анна', 'anna@example.com', NULL
 		)
 	`, sixtyMinuteTypeID); err != nil {
 		t.Fatalf("insert occupied call: %v", err)
@@ -221,14 +221,21 @@ func TestPublicCallTypeAvailabilityUsesMoscowWindowAndAllExistingCalls(t *testin
 	if body.Days[0].Date != "2026-10-21" || body.Days[13].Date != "2026-11-03" {
 		t.Errorf("date window = %s..%s", body.Days[0].Date, body.Days[13].Date)
 	}
-	if len(body.Days[0].Slots) != 13 {
-		t.Fatalf("today slots = %d, want 13: %+v", len(body.Days[0].Slots), body.Days[0].Slots)
+	if len(body.Days[0].Slots) != 2 {
+		t.Fatalf("today slots = %d, want 2: %+v", len(body.Days[0].Slots), body.Days[0].Slots)
 	}
-	if got := body.Days[0].Slots[0].StartsAt.Format(time.RFC3339); got != "2026-10-21T11:30:00+03:00" {
-		t.Errorf("first slot = %s, want boundary-touching 11:30 slot", got)
+	if got := body.Days[0].Slots[0].StartsAt.Format(time.RFC3339); got != "2026-10-21T10:30:00+03:00" {
+		t.Errorf("first slot = %s, want rounded boundary-touching 10:30 slot", got)
 	}
-	if got := body.Days[0].Slots[12].EndsAt.Format(time.RFC3339); got != "2026-10-21T13:00:00+03:00" {
-		t.Errorf("last slot end = %s, want 13:00", got)
+	if got := body.Days[0].Slots[1].StartsAt.Format(time.RFC3339); got != "2026-10-21T12:00:00+03:00" {
+		t.Errorf("second slot = %s, want boundary-touching 12:00 slot", got)
+	}
+	for _, day := range body.Days {
+		for _, slot := range day.Slots {
+			if minute := slot.StartsAt.In(moscow).Minute(); minute != 0 && minute != 30 {
+				t.Errorf("off-grid slot returned: %s", slot.StartsAt.Format(time.RFC3339))
+			}
+		}
 	}
 	if len(body.Days[3].Slots) != 0 || len(body.Days[4].Slots) != 0 {
 		t.Errorf("weekend slots must be empty: Saturday=%d Sunday=%d", len(body.Days[3].Slots), len(body.Days[4].Slots))
@@ -244,10 +251,10 @@ func TestPublicCallTypeAvailabilityDistinguishesUnavailableAndMissingTypes(t *te
 	if err := storage.Seed(ctx, pool); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	if _, err := pool.Exec(ctx, `UPDATE call_types SET status = 'disabled' WHERE slug = 'zvonok-na-15-minut'`); err != nil {
+	if _, err := pool.Exec(ctx, `UPDATE call_types SET status = 'disabled' WHERE slug = 'zvonok-na-30-minut'`); err != nil {
 		t.Fatalf("disable call type: %v", err)
 	}
-	if _, err := pool.Exec(ctx, `UPDATE call_types SET deleted_at = now() WHERE slug = 'zvonok-na-60-minut'`); err != nil {
+	if _, err := pool.Exec(ctx, `UPDATE call_types SET deleted_at = now() WHERE slug = 'zvonok-na-90-minut'`); err != nil {
 		t.Fatalf("soft-delete call type: %v", err)
 	}
 
@@ -257,8 +264,8 @@ func TestPublicCallTypeAvailabilityDistinguishesUnavailableAndMissingTypes(t *te
 		code int
 		body string
 	}{
-		{"zvonok-na-15-minut", http.StatusConflict, `"code":"call_type_unavailable"`},
-		{"zvonok-na-60-minut", http.StatusNotFound, `"code":"call_type_not_found"`},
+		{"zvonok-na-30-minut", http.StatusConflict, `"code":"call_type_unavailable"`},
+		{"zvonok-na-90-minut", http.StatusNotFound, `"code":"call_type_not_found"`},
 		{"never-existed", http.StatusNotFound, `"code":"call_type_not_found"`},
 	} {
 		response := httptest.NewRecorder()

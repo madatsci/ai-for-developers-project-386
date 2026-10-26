@@ -39,7 +39,7 @@ func TestAdminCallsClassifiesAndOrdersSnapshot(t *testing.T) {
 	for _, call := range []struct {
 		id, startsAt, name string
 	}{
-		{"018f0000-0000-7000-8000-000000000503", "2026-10-20T11:45:00+03:00", "Текущий"},
+		{"018f0000-0000-7000-8000-000000000503", "2026-10-20T12:00:00+03:00", "Текущий"},
 		{"018f0000-0000-7000-8000-000000000502", "2026-10-20T13:00:00+03:00", "Второй при равном начале"},
 		{"018f0000-0000-7000-8000-000000000501", "2026-10-20T13:00:00+03:00", "Первый при равном начале"},
 		{"018f0000-0000-7000-8000-000000000504", "2026-10-20T10:00:00+03:00", "Прошедший"},
@@ -144,7 +144,7 @@ func TestAdminCallsFiltersAndPaginatesStableSnapshot(t *testing.T) {
 	asOf := time.Date(2026, time.October, 20, 12, 0, 0, 500_000_000, moscow)
 	for index := 0; index < 55; index++ {
 		id := fmt.Sprintf("018f0000-0000-7000-8000-%012x", 0x600+index)
-		startsAt := asOf.Truncate(time.Second).Add(time.Hour + time.Duration(index)*20*time.Minute)
+		startsAt := asOf.Truncate(time.Second).Add(time.Hour + time.Duration(index)*30*time.Minute)
 		name := fmt.Sprintf("Посетитель %02d", index)
 		email := fmt.Sprintf("visitor%02d@example.com", index)
 		notes := "Обычный комментарий"
@@ -156,8 +156,8 @@ func TestAdminCallsFiltersAndPaginatesStableSnapshot(t *testing.T) {
 			INSERT INTO calls (
 				id, call_type_id, call_type_name, duration_minutes, starts_at,
 				visitor_name, visitor_email, visitor_notes, created_at
-			) VALUES ($1, $2, 'Снимок типа', 15, $3, $4, $5, $6, $7)
-		`, id, callTypeIDs[15], startsAt, name, email, notes, asOf.Add(-time.Hour)); err != nil {
+			) VALUES ($1, $2, 'Снимок типа', 30, $3, $4, $5, $6, $7)
+		`, id, callTypeIDs[30], startsAt, name, email, notes, asOf.Add(-time.Hour)); err != nil {
 			t.Fatalf("insert call %d: %v", index, err)
 		}
 	}
@@ -180,10 +180,10 @@ func TestAdminCallsFiltersAndPaginatesStableSnapshot(t *testing.T) {
 			id, call_type_id, call_type_name, duration_minutes, starts_at,
 			visitor_name, visitor_email, created_at
 		) VALUES (
-			'018f0000-0000-7000-8000-000000000699', $1, 'Поздний тип', 15,
+			'018f0000-0000-7000-8000-000000000699', $1, 'Поздний тип', 30,
 			$2, 'Поздний посетитель', 'late@example.com', $3
 		)
-	`, callTypeIDs[15], asOf.Truncate(time.Second).Add(20*time.Hour), asOf.Add(100*time.Millisecond)); err != nil {
+	`, callTypeIDs[30], asOf.Truncate(time.Second).Add(30*time.Hour), asOf.Add(100*time.Millisecond)); err != nil {
 		t.Fatalf("insert after snapshot: %v", err)
 	}
 
@@ -212,7 +212,7 @@ func TestAdminCallsFiltersAndPaginatesStableSnapshot(t *testing.T) {
 	}
 
 	filtered := httptest.NewRecorder()
-	filterURL := "/api/v1/admin/calls?call_type_id=" + callTypeIDs[15] + "&q=" + url.QueryEscape("  АННА  ")
+	filterURL := "/api/v1/admin/calls?call_type_id=" + callTypeIDs[30] + "&q=" + url.QueryEscape("  АННА  ")
 	handler.ServeHTTP(filtered, httptest.NewRequest(http.MethodGet, filterURL, nil))
 	if filtered.Code != http.StatusOK {
 		t.Fatalf("filtered status = %d, want 200; body=%s", filtered.Code, filtered.Body.String())

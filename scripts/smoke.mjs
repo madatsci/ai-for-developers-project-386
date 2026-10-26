@@ -72,9 +72,9 @@ try {
   assert.equal(callTypes.headers.get('cache-control'), 'no-store')
   const publicCallTypes = (await callTypes.json()).items
   for (const expected of [
-    { name: 'Звонок на 15 минут', description: null, duration_minutes: 15 },
     { name: 'Звонок на 30 минут', description: null, duration_minutes: 30 },
     { name: 'Звонок на 60 минут', description: null, duration_minutes: 60 },
+    { name: 'Звонок на 90 минут', description: null, duration_minutes: 90 },
   ]) {
     assert.ok(
       publicCallTypes.some(
@@ -88,9 +88,9 @@ try {
   }
 
   const seededCallType = publicCallTypes.find(
-    ({ name, duration_minutes }) => name === 'Звонок на 15 минут' && duration_minutes === 15,
+    ({ name, duration_minutes }) => name === 'Звонок на 30 минут' && duration_minutes === 30,
   )
-  assert.ok(seededCallType, 'Seeded 15-minute call type is missing')
+  assert.ok(seededCallType, 'Seeded 30-minute call type is missing')
 
   let persistedSmokeCall = await findPersistedSmokeCall()
   if (!persistedSmokeCall) {
@@ -102,6 +102,10 @@ try {
     const availability = await availabilityResponse.json()
     const availableSlot = availability.days.flatMap(({ slots }) => slots)[0]
     assert.ok(availableSlot?.starts_at, 'Seeded call type has no available slot')
+    const slotStart = new Date(availableSlot.starts_at)
+    const slotEnd = new Date(availableSlot.ends_at)
+    assert.ok([0, 30].includes(Number(availableSlot.starts_at.slice(14, 16))))
+    assert.equal(slotEnd.getTime() - slotStart.getTime(), 30 * 60 * 1000)
 
     const bookingResponse = await fetch(`${baseURL}/api/v1/public/calls`, {
       method: 'POST',
@@ -146,7 +150,7 @@ try {
     body: JSON.stringify({
       name: smokeName,
       description: 'Production smoke test',
-      duration_minutes: 45,
+      duration_minutes: 60,
       schedule_id: schedule.id,
     }),
     signal: AbortSignal.timeout(3000),
@@ -168,7 +172,7 @@ try {
     body: JSON.stringify({
       name: smokeName,
       description: null,
-      duration_minutes: 45,
+      duration_minutes: 60,
       status: 'disabled',
       schedule_id: schedule.id,
     }),

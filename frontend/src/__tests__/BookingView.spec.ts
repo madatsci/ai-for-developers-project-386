@@ -43,10 +43,10 @@ const activeCallType = {
 
 const activeTypes = [
   {
-    slug: 'zvonok-na-15-minut',
-    name: 'Звонок на 15 минут',
+    slug: 'zvonok-na-90-minut',
+    name: 'Звонок на 90 минут',
     description: null,
-    duration_minutes: 15,
+    duration_minutes: 90,
   },
 ]
 
@@ -303,7 +303,7 @@ describe('BookingView', () => {
     await firstView.get('textarea[name="visitor_notes"]').setValue('Вопрос о проекте')
     firstView.unmount()
 
-    routeState.typeSlug = 'zvonok-na-15-minut'
+    routeState.typeSlug = 'zvonok-na-90-minut'
     const secondView = mountView()
     await flushPromises()
     expect(secondView.find('form').exists()).toBe(false)
@@ -523,7 +523,7 @@ describe('BookingView', () => {
     const currentAvailability = availability()
     currentAvailability.call_type.name = 'Обновлённый тип звонка'
     currentAvailability.call_type.description = 'Актуальное описание'
-    currentAvailability.call_type.duration_minutes = 45
+    currentAvailability.call_type.duration_minutes = 60
     currentAvailability.call_type.call_type_version = '2'
     getPublicCallTypeAvailability.mockResolvedValueOnce({ data: currentAvailability })
 
@@ -532,7 +532,7 @@ describe('BookingView', () => {
 
     expect(wrapper.text()).toContain('Обновлённый тип звонка')
     expect(wrapper.text()).toContain('Актуальное описание')
-    expect(wrapper.text()).toContain('45 минут')
+    expect(wrapper.text()).toContain('60 минут')
     expect(wrapper.text()).not.toContain('Обсудим задачу')
   })
 
@@ -575,7 +575,7 @@ describe('BookingView', () => {
     await flushPromises()
 
     expect(wrapper.get(`[data-state="${example.state}"]`).text()).toContain(example.message)
-    expect(wrapper.text()).toContain('Звонок на 15 минут')
+    expect(wrapper.text()).toContain('Звонок на 90 минут')
     expect(getPublicCallTypeAvailability).not.toHaveBeenCalled()
   })
 })

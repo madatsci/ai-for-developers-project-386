@@ -23,9 +23,9 @@ scalar IdempotencyKey extends string;
 @pattern("^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 scalar ResourceId extends string;
 
-/** A five-minute-grid RFC 3339 timestamp with an explicit offset and no fraction. */
+/** A thirty-minute-grid RFC 3339 timestamp with an explicit offset and no fraction. */
 @format("date-time")
-@pattern("^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][05]:00(?:Z|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])$")
+@pattern("^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):(?:00|30):00(?:Z|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])$")
 scalar RequestSlotDateTime extends string;
 
 /** An RFC 3339 timestamp normalized to Europe/Moscow without fractional seconds. */
@@ -33,9 +33,9 @@ scalar RequestSlotDateTime extends string;
 @pattern("^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]\\+03:00$")
 scalar MoscowDateTime extends string;
 
-/** A five-minute-grid RFC 3339 timestamp normalized to Europe/Moscow. */
+/** A thirty-minute-grid RFC 3339 timestamp normalized to Europe/Moscow. */
 @format("date-time")
-@pattern("^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][05]:00\\+03:00$")
+@pattern("^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):(?:00|30):00\\+03:00$")
 scalar MoscowSlotDateTime extends string;
 
 /** Local Moscow time in `HH:mm` format. */
@@ -49,10 +49,10 @@ scalar CallTypeName extends string;
 @maxLength(500)
 scalar CallTypeDescription extends string;
 
-/** Duration in minutes. The service accepts values in five-minute increments. */
-@minValue(15)
+/** Duration in minutes. The service accepts values in thirty-minute increments. */
+@minValue(30)
 @maxValue(240)
-@TypeSpec.JsonSchema.multipleOf(5)
+@TypeSpec.JsonSchema.multipleOf(30)
 scalar DurationMinutes extends int32;
 
 @minLength(1)

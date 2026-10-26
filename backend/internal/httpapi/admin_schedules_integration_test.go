@@ -133,8 +133,8 @@ func TestAdminScheduleUpdateIsConditionalAndChangesPublicAvailability(t *testing
 		}
 		return len(body.Days[1].Slots)
 	}
-	if got := availabilitySlots(); got != 7 {
-		t.Errorf("slots inside current working hours = %d, want 7", got)
+	if got := availabilitySlots(); got != 2 {
+		t.Errorf("slots inside current working hours = %d, want 2", got)
 	}
 
 	expandedWorkingHours := []byte(`{"days":[
@@ -146,8 +146,8 @@ func TestAdminScheduleUpdateIsConditionalAndChangesPublicAvailability(t *testing
 	if response := putWorkingHours(handler, `"1"`, expandedWorkingHours); response.Code != http.StatusOK {
 		t.Fatalf("expand working hours status = %d; body=%s", response.Code, response.Body.String())
 	}
-	if got := availabilitySlots(); got != 31 {
-		t.Errorf("slots after expanding working hours = %d, want 31", got)
+	if got := availabilitySlots(); got != 6 {
+		t.Errorf("slots after expanding working hours = %d, want 6", got)
 	}
 }
 

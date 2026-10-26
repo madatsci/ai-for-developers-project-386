@@ -230,8 +230,8 @@ func TestWorkingHoursChangesImmediatelyConstrainPublicAvailability(t *testing.T)
 		}
 		return len(body.Days[1].Slots)
 	}
-	if got := availabilitySlots(); got != 103 {
-		t.Fatalf("initial Friday slots = %d, want 103", got)
+	if got := availabilitySlots(); got != 18 {
+		t.Fatalf("initial Friday slots = %d, want 18", got)
 	}
 
 	narrowed := []byte(`{"days":[
@@ -243,16 +243,16 @@ func TestWorkingHoursChangesImmediatelyConstrainPublicAvailability(t *testing.T)
 	if response := putWorkingHours(handler, `"1"`, narrowed); response.Code != http.StatusOK {
 		t.Fatalf("narrow status = %d; body=%s", response.Code, response.Body.String())
 	}
-	if got := availabilitySlots(); got != 7 {
-		t.Errorf("narrowed Friday slots = %d, want 7", got)
+	if got := availabilitySlots(); got != 2 {
+		t.Errorf("narrowed Friday slots = %d, want 2", got)
 	}
 
 	expanded := bytes.Replace(narrowed, []byte(`"10:00","end_time":"11:00"`), []byte(`"09:00","end_time":"12:00"`), 1)
 	if response := putWorkingHours(handler, `"2"`, expanded); response.Code != http.StatusOK {
 		t.Fatalf("expand status = %d; body=%s", response.Code, response.Body.String())
 	}
-	if got := availabilitySlots(); got != 31 {
-		t.Errorf("expanded Friday slots = %d, want 31", got)
+	if got := availabilitySlots(); got != 6 {
+		t.Errorf("expanded Friday slots = %d, want 6", got)
 	}
 }
 

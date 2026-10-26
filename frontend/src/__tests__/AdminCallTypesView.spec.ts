@@ -92,7 +92,7 @@ describe('AdminCallTypesView', () => {
       slug: 'razbor-proekta',
       name: 'Разбор проекта',
       description: 'Обсудим архитектуру',
-      duration_minutes: 45,
+      duration_minutes: 60,
     }
     createAdminCallType.mockResolvedValue({ data: created })
     const wrapper = mountView()
@@ -109,7 +109,7 @@ describe('AdminCallTypesView', () => {
     )
     await wrapper.get('input[name="call-type-name"]').setValue('Разбор проекта')
     await wrapper.get('textarea[name="call-type-description"]').setValue('Обсудим архитектуру')
-    await wrapper.get('input[name="call-type-duration"]').setValue('45')
+    await wrapper.get('input[name="call-type-duration"]').setValue('60')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
@@ -117,12 +117,28 @@ describe('AdminCallTypesView', () => {
       body: {
         name: 'Разбор проекта',
         description: 'Обсудим архитектуру',
-        duration_minutes: 45,
+        duration_minutes: 60,
         schedule_id: schedule.id,
       },
     })
     expect(wrapper.text()).toContain('Тип звонка создан')
     expect(wrapper.text()).toContain('razbor-proekta')
+  })
+
+  it('accepts only durations from 30 to 240 minutes in 30-minute steps', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-create-call-type]').trigger('click')
+    const duration = wrapper.get('input[name="call-type-duration"]')
+    expect(duration.attributes()).toMatchObject({ min: '30', max: '240', step: '30' })
+
+    await wrapper.get('input[name="call-type-name"]').setValue('Неверная длительность')
+    await duration.setValue('45')
+    await wrapper.get('form').trigger('submit')
+
+    expect(createAdminCallType).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Укажите от 30 до 240 минут с шагом 30.')
   })
 
   it('uses separate list and editor states on mobile', async () => {

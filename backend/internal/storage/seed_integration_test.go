@@ -31,27 +31,27 @@ func TestSeedLifecycle(t *testing.T) {
 	}
 	assertSeededGraph(t, pool)
 
-	if _, err := pool.Exec(ctx, `UPDATE call_types SET name = 'Изменённый тип' WHERE duration_minutes = 15`); err != nil {
+	if _, err := pool.Exec(ctx, `UPDATE call_types SET name = 'Изменённый тип' WHERE duration_minutes = 30`); err != nil {
 		t.Fatalf("change seeded data: %v", err)
 	}
 	if err := storage.Seed(ctx, pool); err != nil {
 		t.Fatalf("seed after change: %v", err)
 	}
 	var name string
-	if err := pool.QueryRow(ctx, `SELECT name FROM call_types WHERE duration_minutes = 15`).Scan(&name); err != nil {
+	if err := pool.QueryRow(ctx, `SELECT name FROM call_types WHERE duration_minutes = 30`).Scan(&name); err != nil {
 		t.Fatalf("read changed type: %v", err)
 	}
 	if name != "Изменённый тип" {
 		t.Fatalf("seed restored changed data: name = %q", name)
 	}
-	if _, err := pool.Exec(ctx, `UPDATE call_types SET deleted_at = now() WHERE duration_minutes = 60`); err != nil {
+	if _, err := pool.Exec(ctx, `UPDATE call_types SET deleted_at = now() WHERE duration_minutes = 90`); err != nil {
 		t.Fatalf("delete seeded type: %v", err)
 	}
 	if err := storage.Seed(ctx, pool); err != nil {
 		t.Fatalf("seed after delete: %v", err)
 	}
 	var deletedTypeCount int
-	if err := pool.QueryRow(ctx, `SELECT count(*) FROM call_types WHERE duration_minutes = 60 AND deleted_at IS NOT NULL`).Scan(&deletedTypeCount); err != nil {
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM call_types WHERE duration_minutes = 90 AND deleted_at IS NOT NULL`).Scan(&deletedTypeCount); err != nil {
 		t.Fatalf("count deleted type: %v", err)
 	}
 	if deletedTypeCount != 1 {
@@ -116,7 +116,7 @@ func assertSeededGraph(t *testing.T, pool *pgxpool.Pool) {
 	`).Scan(&exactIntervals); err != nil {
 		t.Fatalf("verify seeded intervals: %v", err)
 	}
-	if organizerCount != 1 || timezone != "Europe/Moscow" || workingDayIntervals != 5 || scheduleName != "Основное" || scheduleDayIntervals != 5 || exactIntervals != 10 || validTypes != 3 || fmt.Sprint(durations) != "[15 30 60]" {
+	if organizerCount != 1 || timezone != "Europe/Moscow" || workingDayIntervals != 5 || scheduleName != "Основное" || scheduleDayIntervals != 5 || exactIntervals != 10 || validTypes != 3 || fmt.Sprint(durations) != "[30 60 90]" {
 		t.Fatalf("unexpected seeded graph: organizers=%d timezone=%q working=%d schedule=%q availability=%d exact_intervals=%d valid_types=%d durations=%v", organizerCount, timezone, workingDayIntervals, scheduleName, scheduleDayIntervals, exactIntervals, validTypes, durations)
 	}
 }
@@ -162,12 +162,9 @@ func TestDatabaseStoresCallTypeSnapshotsAndRejectsOverlappingCalls(t *testing.T)
 		t.Fatalf("seed: %v", err)
 	}
 
-	var thirtyMinuteTypeID, fifteenMinuteTypeID, sixtyMinuteTypeID string
+	var thirtyMinuteTypeID, sixtyMinuteTypeID string
 	if err := pool.QueryRow(ctx, `SELECT id FROM call_types WHERE duration_minutes = 30`).Scan(&thirtyMinuteTypeID); err != nil {
 		t.Fatalf("read 30-minute type: %v", err)
-	}
-	if err := pool.QueryRow(ctx, `SELECT id FROM call_types WHERE duration_minutes = 15`).Scan(&fifteenMinuteTypeID); err != nil {
-		t.Fatalf("read 15-minute type: %v", err)
 	}
 	if err := pool.QueryRow(ctx, `SELECT id FROM call_types WHERE duration_minutes = 60`).Scan(&sixtyMinuteTypeID); err != nil {
 		t.Fatalf("read 60-minute type: %v", err)
@@ -186,7 +183,7 @@ func TestDatabaseStoresCallTypeSnapshotsAndRejectsOverlappingCalls(t *testing.T)
 		t.Fatalf("insert first call: %v", err)
 	}
 
-	if _, err := pool.Exec(ctx, `UPDATE call_types SET name = 'Новое название', duration_minutes = 45 WHERE id = $1`, thirtyMinuteTypeID); err != nil {
+	if _, err := pool.Exec(ctx, `UPDATE call_types SET name = 'Новое название', duration_minutes = 90 WHERE id = $1`, thirtyMinuteTypeID); err != nil {
 		t.Fatalf("update call type: %v", err)
 	}
 	var snapshotName string
@@ -203,16 +200,63 @@ func TestDatabaseStoresCallTypeSnapshotsAndRejectsOverlappingCalls(t *testing.T)
 	}
 
 	if _, err := pool.Exec(ctx, insertCall,
-		"018f0000-0000-7000-8000-000000000102", fifteenMinuteTypeID,
-		"Касающийся звонок", 15, "2026-10-21T10:30:00+03:00",
+		"018f0000-0000-7000-8000-000000000102", sixtyMinuteTypeID,
+		"Касающийся звонок", 30, "2026-10-21T10:30:00+03:00",
 	); err != nil {
 		t.Fatalf("touching call was rejected: %v", err)
 	}
 	if _, err := pool.Exec(ctx, insertCall,
 		"018f0000-0000-7000-8000-000000000103", sixtyMinuteTypeID,
-		"Пересекающийся звонок", 60, "2026-10-21T10:15:00+03:00",
+		"Пересекающийся звонок", 60, "2026-10-21T10:00:00+03:00",
 	); err == nil {
 		t.Fatal("overlapping call of another type was accepted")
+	}
+}
+
+func TestDatabaseProtectsCallDurationsAndMoscowStartGrid(t *testing.T) {
+	ctx := context.Background()
+	pool := testPool(t)
+	if err := storage.Migrate(ctx, pool); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	if err := storage.Seed(ctx, pool); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	var callTypeID string
+	if err := pool.QueryRow(ctx, `SELECT id FROM call_types WHERE duration_minutes = 30`).Scan(&callTypeID); err != nil {
+		t.Fatalf("read call type: %v", err)
+	}
+	for _, duration := range []int{29, 31, 45, 241} {
+		if _, err := pool.Exec(ctx, `UPDATE call_types SET duration_minutes = $1 WHERE id = $2`, duration, callTypeID); err == nil {
+			t.Errorf("call type duration %d was accepted", duration)
+		}
+	}
+
+	insertCall := `
+		INSERT INTO calls (
+			id, call_type_id, call_type_name, duration_minutes, starts_at,
+			visitor_name, visitor_email, visitor_notes
+		) VALUES ($1, $2, 'Проверка ограничений', $3, $4, 'Анна', 'anna@example.com', NULL)
+	`
+	invalidCalls := []struct {
+		name     string
+		id       string
+		duration int
+		startsAt string
+	}{
+		{"duration below minimum", "018f0000-0000-7000-8000-000000000301", 29, "2026-10-26T09:00:00+03:00"},
+		{"duration outside step", "018f0000-0000-7000-8000-000000000302", 45, "2026-10-26T10:00:00+03:00"},
+		{"duration above maximum", "018f0000-0000-7000-8000-000000000303", 241, "2026-10-26T11:00:00+03:00"},
+		{"quarter-hour start", "018f0000-0000-7000-8000-000000000304", 30, "2026-10-26T12:15:00+03:00"},
+		{"non-zero seconds", "018f0000-0000-7000-8000-000000000305", 30, "2026-10-26T13:00:01+03:00"},
+	}
+	for _, example := range invalidCalls {
+		t.Run(example.name, func(t *testing.T) {
+			if _, err := pool.Exec(ctx, insertCall, example.id, callTypeID, example.duration, example.startsAt); err == nil {
+				t.Fatal("invalid call was accepted")
+			}
+		})
 	}
 }
 

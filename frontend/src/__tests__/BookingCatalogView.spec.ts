@@ -32,18 +32,18 @@ describe('BookingCatalogView', () => {
       data: {
         items: [
           {
-            slug: 'zvonok-na-15-minut',
-            name: 'Звонок на 15 минут',
+            slug: 'zvonok-na-90-minut',
+            name: 'Звонок на 90 минут',
             description: null,
-            duration_minutes: 15,
+            duration_minutes: 90,
           },
         ],
       },
     })
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Звонок на 15 минут')
-    expect(wrapper.text()).toContain('15 мин')
+    expect(wrapper.text()).toContain('Звонок на 90 минут')
+    expect(wrapper.text()).toContain('90 мин')
     expect(wrapper.text()).not.toContain('Загружаем типы звонков')
   })
 

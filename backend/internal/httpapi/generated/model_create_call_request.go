@@ -24,8 +24,8 @@ type CreateCallRequest struct {
 	// An opaque resource version. Clients must not interpret its contents.
 	CallTypeVersion string `json:"call_type_version"`
 
-	// A five-minute-grid RFC 3339 timestamp with an explicit offset and no fraction.
-	StartsAt time.Time `json:"starts_at" validate:"regexp=^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][05]:00(?:Z|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])$"`
+	// A thirty-minute-grid RFC 3339 timestamp with an explicit offset and no fraction.
+	StartsAt time.Time `json:"starts_at" validate:"regexp=^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):(?:00|30):00(?:Z|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])$"`
 
 	VisitorName string `json:"visitor_name"`
 

@@ -21,7 +21,7 @@ type UpdateCallTypeRequest struct {
 
 	Description *string `json:"description,omitempty"`
 
-	// Duration in minutes. The service accepts values in five-minute increments.
+	// Duration in minutes. The service accepts values in thirty-minute increments.
 	DurationMinutes int32 `json:"duration_minutes"`
 
 	Status CallTypeStatus `json:"status"`
@@ -121,7 +121,7 @@ func AssertUpdateCallTypeRequestRequired(obj UpdateCallTypeRequest) error {
 
 // AssertUpdateCallTypeRequestConstraints checks if the values respects the defined constraints
 func AssertUpdateCallTypeRequestConstraints(obj UpdateCallTypeRequest) error {
-	if obj.DurationMinutes < 15 {
+	if obj.DurationMinutes < 30 {
 		return &ParsingError{Param: "DurationMinutes", Err: errors.New(errMsgMinValueConstraint)}
 	}
 	if obj.DurationMinutes > 240 {

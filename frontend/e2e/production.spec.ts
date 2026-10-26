@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 test.describe.serial('production acceptance', () => {
   test('visitor books a seeded call type and the organizer finds the call', async ({ page }) => {
     await page.goto('/booking')
-    await page.getByRole('link', { name: /Звонок на 15 минут/ }).click()
+    await page.getByRole('link', { name: /Звонок на 30 минут/ }).click()
 
     await expect(page.locator('[data-availability-day]')).toHaveCount(14)
     const firstDayWithSlots = page
@@ -30,9 +30,9 @@ test.describe.serial('production acceptance', () => {
 
     const confirmation = page.locator('[data-confirmation]')
     await expect(confirmation).toContainText('Звонок забронирован')
-    await expect(confirmation).toContainText('Звонок на 15 минут')
+    await expect(confirmation).toContainText('Звонок на 30 минут')
     await expect(confirmation).toContainText(selectedDateLabel)
-    await expect(confirmation.getByText('15 минут', { exact: true })).toBeVisible()
+    await expect(confirmation.getByText('30 минут', { exact: true })).toBeVisible()
     await expect(confirmation).toContainText('Посетитель E2E')
     await expect(confirmation).toContainText('visitor.e2e@example.com')
     await expect(confirmation).toContainText('Публичный production E2E')
@@ -46,8 +46,8 @@ test.describe.serial('production acceptance', () => {
       })
       .toEqual([
         expect.objectContaining({
-          call_type_name: 'Звонок на 15 минут',
-          duration_minutes: 15,
+          call_type_name: 'Звонок на 30 минут',
+          duration_minutes: 30,
           visitor_name: 'Посетитель E2E',
           visitor_email: 'visitor.e2e@example.com',
           visitor_notes: 'Публичный production E2E',
@@ -80,7 +80,7 @@ test.describe.serial('production acceptance', () => {
     await page.locator('[data-create-call-type]').click()
     await page.getByLabel('Название').fill('Production E2E')
     await page.getByLabel('Описание').fill('Проверка контейнерного контура')
-    await page.getByLabel('Длительность, минут').fill('15')
+    await page.getByLabel('Длительность, минут').fill('30')
     await page.getByRole('button', { name: 'Создать тип', exact: true }).click()
     await expect(page.getByRole('status')).toHaveText('Тип звонка создан')
 
@@ -97,7 +97,7 @@ test.describe.serial('production acceptance', () => {
       .filter({ has: page.locator('[data-slot]') })
       .first()
     await expect(mondayWithSlots).toBeVisible()
-    await expect(mondayWithSlots.locator('[data-slot]').first()).toHaveText('10:30–10:45')
+    await expect(mondayWithSlots.locator('[data-slot]').first()).toHaveText('10:30–11:00')
     await mondayWithSlots.locator('[data-slot]').first().click()
     await page.getByLabel('Имя').fill('Администратор E2E')
     await page.getByLabel('Email').fill('admin.e2e@example.com')

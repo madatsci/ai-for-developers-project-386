@@ -25,7 +25,7 @@ type PublicCallType struct {
 
 	Description *string `json:"description"`
 
-	// Duration in minutes. The service accepts values in five-minute increments.
+	// Duration in minutes. The service accepts values in thirty-minute increments.
 	DurationMinutes int32 `json:"duration_minutes"`
 
 	Status CallTypeStatus `json:"status"`
@@ -135,7 +135,7 @@ func AssertPublicCallTypeRequired(obj PublicCallType) error {
 
 // AssertPublicCallTypeConstraints checks if the values respects the defined constraints
 func AssertPublicCallTypeConstraints(obj PublicCallType) error {
-	if obj.DurationMinutes < 15 {
+	if obj.DurationMinutes < 30 {
 		return &ParsingError{Param: "DurationMinutes", Err: errors.New(errMsgMinValueConstraint)}
 	}
 	if obj.DurationMinutes > 240 {

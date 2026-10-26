@@ -17,7 +17,7 @@ import (
 
 const maxJSONBodyBytes = 64 * 1024
 
-var requestSlotDateTimePattern = regexp.MustCompile(`^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][05]:00(?:Z|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])$`)
+var requestSlotDateTimePattern = regexp.MustCompile(`^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):(?:00|30):00(?:Z|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])$`)
 
 type HandlerServices struct {
 	PublicCallTypes   generated.PublicCallTypesAPIServicer
@@ -164,7 +164,7 @@ func validateCreateCallJSON(w http.ResponseWriter, body []byte) bool {
 		return true
 	}
 	writeValidationError(w, []generated.FieldError{
-		fieldError("body.starts_at", "invalid", "Укажите RFC 3339 время на пятиминутной сетке без долей секунды"),
+		fieldError("body.starts_at", "invalid", "Укажите RFC 3339 время на 30-минутной сетке без долей секунды"),
 	})
 	return false
 }
@@ -187,7 +187,7 @@ func controllerErrorHandler(w http.ResponseWriter, _ *http.Request, err error, r
 		}
 		if parsingError.Param == "DurationMinutes" {
 			writeValidationError(w, []generated.FieldError{
-				fieldError("body.duration_minutes", "invalid", "Длительность должна быть от 15 до 240 минут с шагом 5"),
+				fieldError("body.duration_minutes", "invalid", "Длительность должна быть от 30 до 240 минут с шагом 30"),
 			})
 			return
 		}

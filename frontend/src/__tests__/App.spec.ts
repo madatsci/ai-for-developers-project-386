@@ -28,10 +28,10 @@ describe('App', () => {
       data: {
         items: [
           {
-            slug: 'zvonok-na-15-minut',
-            name: 'Звонок на 15 минут',
+            slug: 'zvonok-na-90-minut',
+            name: 'Звонок на 90 минут',
             description: null,
-            duration_minutes: 15,
+            duration_minutes: 90,
           },
           {
             slug: 'zvonok-na-30-minut',
@@ -50,10 +50,10 @@ describe('App', () => {
     })
     getPublicCallType.mockResolvedValue({
       data: {
-        slug: 'zvonok-na-15-minut',
-        name: 'Звонок на 15 минут',
+        slug: 'zvonok-na-90-minut',
+        name: 'Звонок на 90 минут',
         description: null,
-        duration_minutes: 15,
+        duration_minutes: 90,
         status: 'active',
         call_type_version: '1',
       },
@@ -63,10 +63,10 @@ describe('App', () => {
         generated_at: '2026-10-21T10:02:34+03:00',
         timezone: 'Europe/Moscow',
         call_type: {
-          slug: 'zvonok-na-15-minut',
-          name: 'Звонок на 15 минут',
+          slug: 'zvonok-na-90-minut',
+          name: 'Звонок на 90 минут',
           description: null,
-          duration_minutes: 15,
+          duration_minutes: 90,
           call_type_version: '1',
         },
         days: [
@@ -91,7 +91,7 @@ describe('App', () => {
               ? [
                   {
                     starts_at: '2026-10-21T11:30:00+03:00',
-                    ends_at: '2026-10-21T11:45:00+03:00',
+                    ends_at: '2026-10-21T13:00:00+03:00',
                   },
                 ]
               : [],
@@ -117,7 +117,7 @@ describe('App', () => {
 
     expect(router.currentRoute.value.path).toBe('/booking')
     expect(wrapper.get('h1').text()).toBe('Бронирование звонка')
-    expect(wrapper.text()).toContain('Звонок на 15 минут')
+    expect(wrapper.text()).toContain('Звонок на 90 минут')
     wrapper.unmount()
   })
 
@@ -131,10 +131,10 @@ describe('App', () => {
     expect(wrapper.get('a[href="/"]').text()).toBe('Календарь звонков')
 
     await flushPromises()
-    await wrapper.get('a[href="/booking/zvonok-na-15-minut"]').trigger('click')
+    await wrapper.get('a[href="/booking/zvonok-na-90-minut"]').trigger('click')
     await flushPromises()
 
-    expect(router.currentRoute.value.path).toBe('/booking/zvonok-na-15-minut')
+    expect(router.currentRoute.value.path).toBe('/booking/zvonok-na-90-minut')
     expect(wrapper.text()).toContain('Свободное время')
     wrapper.unmount()
   })
@@ -144,9 +144,9 @@ describe('App', () => {
       Promise.resolve({
         data: {
           slug: path.slug,
-          name: path.slug === 'otklyuchennyy' ? 'Отключённый тип' : 'Звонок на 15 минут',
+          name: path.slug === 'otklyuchennyy' ? 'Отключённый тип' : 'Звонок на 90 минут',
           description: null,
-          duration_minutes: 15,
+          duration_minutes: 90,
           status: path.slug === 'otklyuchennyy' ? 'disabled' : 'active',
           call_type_version: '1',
         },
@@ -159,12 +159,12 @@ describe('App', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Тип звонка временно недоступен')
-    await wrapper.get('a[href="/booking/zvonok-na-15-minut"]').trigger('click')
+    await wrapper.get('a[href="/booking/zvonok-na-90-minut"]').trigger('click')
     await flushPromises()
 
-    expect(router.currentRoute.value.path).toBe('/booking/zvonok-na-15-minut')
+    expect(router.currentRoute.value.path).toBe('/booking/zvonok-na-90-minut')
     expect(getPublicCallTypeAvailability).toHaveBeenCalledWith({
-      path: { slug: 'zvonok-na-15-minut' },
+      path: { slug: 'zvonok-na-90-minut' },
     })
     expect(wrapper.findAll('[data-availability-day]')).toHaveLength(14)
     wrapper.unmount()

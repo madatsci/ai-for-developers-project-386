@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -34,7 +35,7 @@ func TestAdminCallTypesListsAndCreatesStablePublicType(t *testing.T) {
 	if err := json.Unmarshal(listed.Body.Bytes(), &list); err != nil {
 		t.Fatalf("decode list: %v", err)
 	}
-	if len(list.Items) != 3 || list.Items[0].DurationMinutes != 15 || list.Items[0].Schedule.Name != "Основное" {
+	if len(list.Items) != 3 || list.Items[0].DurationMinutes != 30 || list.Items[0].Schedule.Name != "Основное" {
 		t.Fatalf("unexpected seeded list: %+v", list.Items)
 	}
 	if !list.Items[0].CanDelete || list.Items[0].DeleteBlockedReason != nil {
@@ -49,7 +50,7 @@ func TestAdminCallTypesListsAndCreatesStablePublicType(t *testing.T) {
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/call-types", bytes.NewBufferString(`{
 		"name":"  Разбор объекта  ",
 		"description":"  Обсудим архитектуру  ",
-		"duration_minutes":45,
+		"duration_minutes":60,
 		"schedule_id":"`+scheduleID+`"
 	}`))
 	request.Header.Set("Content-Type", "application/json")
@@ -105,7 +106,7 @@ func TestAdminCallTypeUpdateIsConditionalAndPreservesCallSnapshot(t *testing.T) 
 	updateBody := `{
 		"name":"Архитектурный разбор",
 		"description":"",
-		"duration_minutes":45,
+		"duration_minutes":60,
 		"status":"disabled",
 		"schedule_id":"` + scheduleID + `"
 	}`
@@ -131,7 +132,7 @@ func TestAdminCallTypeUpdateIsConditionalAndPreservesCallSnapshot(t *testing.T) 
 	handler.ServeHTTP(publicDisabled, httptest.NewRequest(http.MethodGet, "/api/v1/public/call-types/zvonok-na-30-minut", nil))
 	if publicDisabled.Code != http.StatusOK ||
 		!bytes.Contains(publicDisabled.Body.Bytes(), []byte(`"name":"Архитектурный разбор"`)) ||
-		!bytes.Contains(publicDisabled.Body.Bytes(), []byte(`"duration_minutes":45`)) ||
+		!bytes.Contains(publicDisabled.Body.Bytes(), []byte(`"duration_minutes":60`)) ||
 		!bytes.Contains(publicDisabled.Body.Bytes(), []byte(`"status":"disabled"`)) ||
 		!bytes.Contains(publicDisabled.Body.Bytes(), []byte(`"call_type_version":"2"`)) {
 		t.Errorf("disabled public detail = status %d body %s", publicDisabled.Code, publicDisabled.Body.String())
@@ -166,7 +167,7 @@ func TestAdminCallTypeUpdateIsConditionalAndPreservesCallSnapshot(t *testing.T) 
 	reenableRequest := httptest.NewRequest(http.MethodPut, "/api/v1/admin/call-types/"+id, bytes.NewBufferString(`{
 		"name":"Архитектурный разбор",
 		"description":null,
-		"duration_minutes":45,
+			"duration_minutes":60,
 		"status":"active",
 		"schedule_id":"`+emptyScheduleID+`"
 	}`))
@@ -281,7 +282,7 @@ func TestAdminCallTypeDeleteKeepsSlugReservedAndValidatesDomainFields(t *testing
 	}
 	var id, scheduleID string
 	if err := pool.QueryRow(ctx, `
-		SELECT ct.id, ct.schedule_id FROM call_types ct WHERE ct.slug = 'zvonok-na-15-minut'
+		SELECT ct.id, ct.schedule_id FROM call_types ct WHERE ct.slug = 'zvonok-na-90-minut'
 	`).Scan(&id, &scheduleID); err != nil {
 		t.Fatalf("read call type: %v", err)
 	}
@@ -297,9 +298,9 @@ func TestAdminCallTypeDeleteKeepsSlugReservedAndValidatesDomainFields(t *testing
 
 	created := httptest.NewRecorder()
 	createRequest := httptest.NewRequest(http.MethodPost, "/api/v1/admin/call-types", bytes.NewBufferString(`{
-		"name":"Звонок на 15 минут",
+		"name":"Звонок на 90 минут",
 		"description":null,
-		"duration_minutes":15,
+		"duration_minutes":90,
 		"schedule_id":"`+scheduleID+`"
 	}`))
 	createRequest.Header.Set("Content-Type", "application/json")
@@ -311,13 +312,13 @@ func TestAdminCallTypeDeleteKeepsSlugReservedAndValidatesDomainFields(t *testing
 	if err := json.Unmarshal(created.Body.Bytes(), &recreated); err != nil {
 		t.Fatalf("decode recreated call type: %v", err)
 	}
-	if recreated.Slug != "zvonok-na-15-minut-2" {
+	if recreated.Slug != "zvonok-na-90-minut-2" {
 		t.Errorf("recreated slug = %q, want never-reused suffix", recreated.Slug)
 	}
 
 	invalid := httptest.NewRecorder()
 	invalidRequest := httptest.NewRequest(http.MethodPost, "/api/v1/admin/call-types", bytes.NewBufferString(`{
-		"name":" ","description":null,"duration_minutes":17,"schedule_id":"not-a-uuid"
+		"name":" ","description":null,"duration_minutes":31,"schedule_id":"not-a-uuid"
 	}`))
 	invalidRequest.Header.Set("Content-Type", "application/json")
 	handler.ServeHTTP(invalid, invalidRequest)
@@ -330,14 +331,16 @@ func TestAdminCallTypeDeleteKeepsSlugReservedAndValidatesDomainFields(t *testing
 		}
 	}
 
-	belowMinimum := httptest.NewRecorder()
-	belowMinimumRequest := httptest.NewRequest(http.MethodPost, "/api/v1/admin/call-types", bytes.NewBufferString(`{
-		"name":"Короткий","description":null,"duration_minutes":10,"schedule_id":"`+scheduleID+`"
-	}`))
-	belowMinimumRequest.Header.Set("Content-Type", "application/json")
-	handler.ServeHTTP(belowMinimum, belowMinimumRequest)
-	if belowMinimum.Code != http.StatusUnprocessableEntity ||
-		!bytes.Contains(belowMinimum.Body.Bytes(), []byte(`"path":"body.duration_minutes"`)) {
-		t.Errorf("below-minimum duration = status %d body %s", belowMinimum.Code, belowMinimum.Body.String())
+	for _, duration := range []int{29, 31, 45, 241} {
+		response := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/call-types", bytes.NewBufferString(`{
+			"name":"Недопустимая длительность","description":null,"duration_minutes":`+fmt.Sprint(duration)+`,"schedule_id":"`+scheduleID+`"
+		}`))
+		request.Header.Set("Content-Type", "application/json")
+		handler.ServeHTTP(response, request)
+		if response.Code != http.StatusUnprocessableEntity ||
+			!bytes.Contains(response.Body.Bytes(), []byte(`"path":"body.duration_minutes"`)) {
+			t.Errorf("duration %d = status %d body %s", duration, response.Code, response.Body.String())
+		}
 	}
 }

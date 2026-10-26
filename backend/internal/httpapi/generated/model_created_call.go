@@ -27,14 +27,14 @@ type CreatedCall struct {
 
 	CallTypeName string `json:"call_type_name"`
 
-	// Duration in minutes. The service accepts values in five-minute increments.
+	// Duration in minutes. The service accepts values in thirty-minute increments.
 	DurationMinutes int32 `json:"duration_minutes"`
 
-	// A five-minute-grid RFC 3339 timestamp normalized to Europe/Moscow.
-	StartsAt time.Time `json:"starts_at" validate:"regexp=^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][05]:00\\+03:00$"`
+	// A thirty-minute-grid RFC 3339 timestamp normalized to Europe/Moscow.
+	StartsAt time.Time `json:"starts_at" validate:"regexp=^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):(?:00|30):00\\+03:00$"`
 
-	// A five-minute-grid RFC 3339 timestamp normalized to Europe/Moscow.
-	EndsAt time.Time `json:"ends_at" validate:"regexp=^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][05]:00\\+03:00$"`
+	// A thirty-minute-grid RFC 3339 timestamp normalized to Europe/Moscow.
+	EndsAt time.Time `json:"ends_at" validate:"regexp=^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):(?:00|30):00\\+03:00$"`
 
 	Timezone string `json:"timezone"`
 
@@ -178,7 +178,7 @@ func AssertCreatedCallRequired(obj CreatedCall) error {
 
 // AssertCreatedCallConstraints checks if the values respects the defined constraints
 func AssertCreatedCallConstraints(obj CreatedCall) error {
-	if obj.DurationMinutes < 15 {
+	if obj.DurationMinutes < 30 {
 		return &ParsingError{Param: "DurationMinutes", Err: errors.New(errMsgMinValueConstraint)}
 	}
 	if obj.DurationMinutes > 240 {

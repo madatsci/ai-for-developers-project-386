@@ -38,7 +38,7 @@ func TestApplicationHandlerServesAPIAndSinglePageApplication(t *testing.T) {
 	}{
 		{"API request", "/api/health", http.StatusOK, "application/json", `{"status":"ok"}`},
 		{"frontend asset", "/assets/app.js", http.StatusOK, "text/javascript; charset=utf-8", "calendar()"},
-		{"SPA route", "/booking/zvonok-na-15-minut", http.StatusOK, "text/html; charset=utf-8", "<main>calendar</main>"},
+		{"SPA route", "/booking/zvonok-na-90-minut", http.StatusOK, "text/html; charset=utf-8", "<main>calendar</main>"},
 		{"missing asset", "/assets/missing.js", http.StatusNotFound, "text/plain; charset=utf-8", "404 page not found\n"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
