@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0](https://github.com/madatsci/ai-for-developers-project-386/compare/v0.3.1...v0.4.0) (2026-10-26)
+
+
+### Features
+
+* use 30-minute booking grid ([aee9b16](https://github.com/madatsci/ai-for-developers-project-386/commit/aee9b16632a7277ebefcabf6f30f07fbc8206e69))
+* use 30-minute booking grid ([7ec0b7d](https://github.com/madatsci/ai-for-developers-project-386/commit/7ec0b7d3c25e35f81c757172581240b77285fcff))
+
+
+### Bug Fixes
+
+* configure Render OAuth client ([d76d18c](https://github.com/madatsci/ai-for-developers-project-386/commit/d76d18ce0136c6f4c782366d65046a1e0d3aec50))
+
 ## [0.3.1](https://github.com/madatsci/ai-for-developers-project-386/compare/v0.3.0...v0.3.1) (2026-10-23)
 
 
